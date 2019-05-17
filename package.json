@@ -1,0 +1,25 @@
+{
+  "name": "ilias-scraper",
+  "version": "1.0.0",
+  "description": "Download newest files from Ilias using the RSS feed",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FunnyPocketBook/ilias-scraper.git"
+  },
+  "author": "Ying-Kai Dang",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/FunnyPocketBook/ilias-scraper/issues"
+  },
+  "homepage": "https://github.com/FunnyPocketBook/ilias-scraper#readme",
+  "dependencies": {
+    "fs": "0.0.1-security",
+    "jsdom": "^15.1.0",
+    "request": "^2.88.0",
+    "xml2js": "^0.4.19"
+  }
+}
