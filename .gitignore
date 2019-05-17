@@ -66,3 +66,4 @@ typings/
 
 # vscode
 .vscode/*
+ignore.txt

@@ -24,7 +24,8 @@ const pathToDir = config.userData.downloadDir.replace(/\\/g, "/");
 const rss = config.userData.privateRssFeed.replace("-password-", config.userData.passwordRss);
 
 
-let fileList = {} // Stores file infos
+let fileList = {}; // Stores file infos
+let ignoreList = []; // Stores files to ignore
 let downloadedCounter = 0;
 let toDownloadCounter = 0;
 let error = false;
@@ -49,6 +50,21 @@ function getFileList() {
         }
         if (data.length > 0) {
             fileList = JSON.parse(data);
+        }
+    });
+
+    if (!fs.existsSync("./" + "ignore.txt")) {
+        fs.closeSync(fs.openSync("./" + "ignore.txt", 'w'))
+    }   
+    fs.readFile("ignore.txt", function (err, data) {
+        if (err) {
+            console.error(err);
+        }
+        if (data.length > 0) {
+            let array = data.toString().replace(/\r\n/g,'\n').split('\n');
+            for(i in array) {
+                ignoreList.push(array[i]);
+            }
         }
     });
     login();
@@ -139,14 +155,18 @@ function getInfos(xmlBody) {
                 if (j == subfolders.length - 1) {
                     if (temp[fileName] != undefined && new Date(fileDate) > new Date(temp[fileName].fileDate)) { // If file already exists and new file is newer than saved one
                         temp[fileName].fileDate = fileDate;
-                        toDownloadCounter++;
                         changed = true;
-                        downloadFile(subfolders, fileName, fileNumber);
+                        if (!ignoreList.includes(fileName)) {
+                            toDownloadCounter++;
+                            downloadFile(subfolders, fileName, fileNumber);
+                        }
                     } else if (temp[fileName] == undefined) { // If file doesn't exist
                         temp[fileName] = {"fileNumber": fileNumber, "fileDate": fileDate};
-                        toDownloadCounter++;
                         changed = true;
-                        downloadFile(subfolders, fileName, fileNumber);
+                        if (!ignoreList.includes(fileName)) {
+                            toDownloadCounter++;
+                            downloadFile(subfolders, fileName, fileNumber);
+                        }
                     }
                 }
             }
