@@ -15,7 +15,8 @@
     downloadDir: "C:/Users/user/iliasFiles"
     };
     ```
-6. Run `node ilias-scraper.js` in the terminal
+6. (optional) Create a file `ignore.txt` and add one filename per line to not download that file.
+7. Run `node ilias-scraper.js` in the terminal
 
 ### Requirements
 This script uses Node.js. If you don't have it, head to [Node.js](https://nodejs.org/en/) and download the latest LTS version for your OS. Then install it and follow the install instructions.
@@ -56,6 +57,10 @@ exports.userData = {
     downloadDir: "C:/Users/user/iliasFiles"
 };
 ```
+
+#### Ignore Files
+
+If you want to ignore files/not download certain files, create a file called `ignore.txt` in the same directory and add one filename per line. Those files won't be downloaded.
 
 ### Usage
 Open the terminal at the location of downloaded files. Enter
