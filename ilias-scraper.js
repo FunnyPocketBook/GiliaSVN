@@ -226,7 +226,7 @@ function downloadFile(subfolders, fileName, fileNumber) {
  */
 function updateFileList() {
     if (!error) {
-        fs.writeFile(fileFile, JSON.stringify(fileList), (err) => {
+        fs.writeFile(fileFile, JSON.stringify(fileList, null, 4), (err) => {
             if (err) {
                 console.error("An error occurred, file list has not been updated.");
                 console.error(err);
