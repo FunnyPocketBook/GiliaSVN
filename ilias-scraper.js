@@ -122,28 +122,33 @@ function getInfos(xmlBody) {
     for (let i = 0; i < xml.rss.channel[0].item.length; i++) {
         // For each link that contains "target=file" (meaning there is a file to download), get the infos of that entry
         if (xml.rss.channel[0].item[i].link[0].includes("target=file")) { 
-            let courseName = xml.rss.channel[0].item[i].title[0].match(/\[(.*?)\]/)[1];
+            let course = xml.rss.channel[0].item[i].title[0].match(/\[(.*?)\]/)[1];
+            let subfolders = course.split(" > ");
             let fileName = xml.rss.channel[0].item[i].title[0].match(/]\s(.*): Die Datei/)[1]; // TODO: Match the name without "Die Datei"
             let fileNumber = xml.rss.channel[0].item[i].link[0].match(/file_(\d*)/)[1];
             let fileDate = xml.rss.channel[0].item[i].pubDate[0];
-            // Check if the course already exists and create it if not
-            if (!fileList[courseName]) {
-                fileList[courseName] = { "files": {} };
-                changed = true;
-            }
-            // Check if the file already exists and create it if not
-            if (!fileList[courseName].files[fileName]) {
-                fileList[courseName].files[fileName] = { "fileNumber": fileNumber, "fileDate": fileDate };
-                changed = true;
-                toDownloadCounter++;
-                downloadFile(courseName, fileName, fileNumber);
-            }
-            // Check if the file has been updated and download it
-            if (fileList[courseName].files[fileName] != undefined && new Date(fileDate) > new Date(fileList[courseName].files[fileName].fileDate)) {
-                changed = true;
-                fileList[courseName].files[fileName].fileDate = fileDate;
-                toDownloadCounter++;
-                downloadFile(courseName, fileName, fileNumber);
+            let temp = fileList;
+
+            // Build up the object one key by one
+            for (let j = 0; j < subfolders.length; j++) {
+                if (!temp[subfolders[j]]) {
+                    temp[subfolders[j]] = {};
+                    changed = true;
+                }
+                temp = temp[subfolders[j]];
+                if (j == subfolders.length - 1) {
+                    if (temp[fileName] != undefined && new Date(fileDate) > new Date(temp[fileName].fileDate)) { // If file already exists and new file is newer than saved one
+                        temp[fileName].fileDate = fileDate;
+                        toDownloadCounter++;
+                        changed = true;
+                        downloadFile(subfolders, fileName, fileNumber);
+                    } else if (temp[fileName] == undefined) { // If file doesn't exist
+                        temp[fileName] = {"fileNumber": fileNumber, "fileDate": fileDate};
+                        toDownloadCounter++;
+                        changed = true;
+                        downloadFile(subfolders, fileName, fileNumber);
+                    }
+                }
             }
         }
     }
@@ -159,13 +164,21 @@ function getInfos(xmlBody) {
  * @param {*} fileName file name from getInfos()
  * @param {*} fileNumber file number from getInfos() to download the file
  */
-function downloadFile(courseName, fileName, fileNumber) {
-    console.log("Downloading " + fileName + " ...");
-    var dir = pathToDir + "/" + courseName.replace(/[/\\?%*:|"<>]/g, '-');
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir);
+function downloadFile(subfolders, fileName, fileNumber) {
+    console.log(toDownloadCounter + " Downloading " + fileName + " ...");
+    let path = pathToDir + "/";
+    // Build the folder structure one by one in order to mkdir for each new dir
+    for (let i = 0; i < subfolders.length; i++) {
+        path += subfolders[i].replace(/[/\\?%*:|"<>]/g, '-');
+        if (i != subfolders.length - 1) {
+            path += "/";
+        }
+        // Create folder if it doesn't already exist
+        if (!fs.existsSync(path)) {
+            fs.mkdirSync(path);
+        }
     }
-    let file = fs.createWriteStream(dir + "/" + fileName.replace(/[/\\?%*:|"<>]/g, '-'));
+    let file = fs.createWriteStream(path + "/" + fileName.replace(/[/\\?%*:|"<>]/g, '-'));
     request({
         url: "https://ilias.uni-konstanz.de/ilias/goto_ilias_uni_file_" + fileNumber + "_download.html",
         method: 'GET',
@@ -188,7 +201,9 @@ function downloadFile(courseName, fileName, fileNumber) {
     })
 }
 
-
+/**
+ * Update files.json
+ */
 function updateFileList() {
     if (!error) {
         fs.writeFile(fileFile, JSON.stringify(fileList), (err) => {
