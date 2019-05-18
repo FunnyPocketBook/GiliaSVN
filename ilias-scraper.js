@@ -144,7 +144,7 @@ function getInfos(xmlBody) {
             let fileNumber = xml.rss.channel[0].item[i].link[0].match(/file_(\d*)/)[1];
             let fileDate = xml.rss.channel[0].item[i].pubDate[0];
             let temp = fileList;
-
+            
             // Build up the object one key by one
             for (let j = 0; j < subfolders.length; j++) {
                 if (!temp[subfolders[j]]) {
