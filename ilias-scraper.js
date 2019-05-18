@@ -198,7 +198,7 @@ function downloadFile(subfolders, fileName, fileNumber) {
             fs.mkdirSync(path);
         }
     }
-    let file = fs.createWriteStream(path + "/" + fileName.replace(/[/\\?%*:|"<>]/g, '-'));
+    let file = fs.createWriteStream(path + "/" + fileName.replace(/[/\\?%*:|"<>]/g, '/'));
     request({
         url: "https://ilias.uni-konstanz.de/ilias/goto_ilias_uni_file_" + fileNumber + "_download.html",
         method: 'GET',

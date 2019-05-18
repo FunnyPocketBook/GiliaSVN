@@ -5,7 +5,7 @@
 2. Clone repository
 3. Run `npm install` in the terminal
 4. Get your private RSS feed link on ILIAS
-5. Configure the `config.js` file. Replace any backslashes with forward slashes in the path and don't have a line break in the privateRssFeed link. Example:
+5. Configure the `config-template.js` file. Replace any backslashes with forward slashes in the path and don't have a line break in the privateRssFeed link. Example:
     ```javascript
     exports.userData = {
     user: "ying-kai.dang",
@@ -15,8 +15,9 @@
     downloadDir: "C:/Users/user/iliasFiles"
     };
     ```
-6. (optional) Create a file `ignore.txt` and add one filename per line to not download that file.
-7. Run `node ilias-scraper.js` in the terminal
+6. Rename config-template.js to config.js
+7. (optional) Create a file `ignore.txt` and add one filename per line to not download that file.
+8. Run `node ilias-scraper.js` in the terminal
 
 ### Requirements
 This script uses Node.js. If you don't have it, head to [Node.js](https://nodejs.org/en/) and download the latest LTS version for your OS. Then install it and follow the install instructions.
