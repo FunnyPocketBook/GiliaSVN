@@ -42,7 +42,7 @@ Make sure the URL does not have any line breaks and is all in one line.
 
 #### Credentials
 
-Enter your ILIAS username and password in the placeholders. The username is usually `firstname.lastname`. In `passwordRss`, enter the password you set for the RSS feed. You can change it by clicking
+Enter your ILIAS username and password in the placeholders. The username is usually `firstname.lastname`. In `passwordRss`, enter the password you set for the RSS feed. You can change it by clicking the cogwheel on the top right of the RSS feed on your ILIAS dashboard.
 
 #### Download directory
 
