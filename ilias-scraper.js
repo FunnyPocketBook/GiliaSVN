@@ -88,11 +88,11 @@ function login() {
             console.error(error);
             return;
         }
-        if (dom.window.document.querySelectorAll(".alert").length != 0) {
+        if (dom.window.document.querySelectorAll(".alert-danger").length != 0) {
             if (response.statusCode != 200) {
                 console.log("Status code: " + response.statusCode);
             }
-            dom.window.document.querySelectorAll(".alert").forEach(function (e) {
+            dom.window.document.querySelectorAll(".alert-danger").forEach(function (e) {
                 console.error(e.textContent.trim());
             })
             process.exit();
