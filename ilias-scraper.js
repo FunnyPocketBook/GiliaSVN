@@ -5,16 +5,36 @@ const log4js = require('log4js');
 const parseString = require('xml2js').parseString;
 const { JSDOM } = jsdom;
 const { document } = (new JSDOM('')).window;
+
+log4js.configure({
+    appenders: {
+        ilias: { 
+            type: 'file', 
+            filename: 'ilias.log' 
+        },
+        console: { 
+            type: 'console' 
+        }
+    },
+    categories: { 
+        default: { 
+            appenders: ['ilias', 'console'], 
+            level: 'info' 
+        } 
+    }
+});
+
+const logger = log4js.getLogger('ilias');
+
 let config;
 try {
     config = require('./config.js');
 } catch (e) {
-    console.error("Please make sure that the link to the RSS feed is in one line and does not contain any line breaks.");
+    logger.error("Please make sure that the link to the RSS feed is in one line and does not contain any line breaks.");
     process.exit();
 }
 const fileFile = "files.json";
 global.document = document;
-
 const url = "https://ilias.uni-konstanz.de/ilias/ilias.php?lang=de&client_id=ilias_uni&cmd=post&cmdClass=ilstartupgui&cmdNode=vl&baseClass=ilStartUpGUI&rtoken=";
 const data = {
     "username": config.userData.user,
@@ -29,14 +49,7 @@ let ignoreList = []; // Stores files to ignore
 let downloadedCounter = 0;
 let toDownloadCounter = 0;
 let error = false;
-let logger;
 
-log4js.configure({
-    appenders: { ilias: { type: 'file', filename: 'ilias.log' } },
-    categories: { default: { appenders: ['ilias'], level: 'info' } }
-});
-
-logger = log4js.getLogger('ilias');
 
 // Check if the pathToDir exists and if not, create it
 if (!fs.existsSync(pathToDir)) {
@@ -55,7 +68,6 @@ function getFileList() {
     fs.readFile(fileFile, function (err, data) {
         if (err) {
             logger.error(err);
-            console.error(err);
         }
         if (data.length > 0) {
             fileList = JSON.parse(data);
@@ -68,7 +80,6 @@ function getFileList() {
     fs.readFile("ignore.txt", function (err, data) {
         if (err) {
             logger.error(err);
-            console.error(err);
         }
         if (data.length > 0) {
             let array = data.toString().replace(/\r\n/g, '\n').split('\n');
@@ -86,7 +97,6 @@ function getFileList() {
 function login() {
     let t0 = (new Date).getTime();
     logger.info("Logging in ...");
-    console.log("Logging in ...");
     request({
         url: url,
         method: 'POST',
@@ -98,24 +108,19 @@ function login() {
         const dom = new JSDOM(body);
         if (error) {
             logger.error(error);
-            console.error(error);
             return;
         }
         if (dom.window.document.querySelectorAll(".alert-danger").length != 0) {
             if (response.statusCode != 200) {
                 logger.info("Status code: " + response.statusCode);
-                console.log("Status code: " + response.statusCode);
             }
             dom.window.document.querySelectorAll(".alert-danger").forEach(function (e) {
                 logger.error(e.textContent.trim());
-                console.error(e.textContent.trim());
             })
             process.exit();
             return;
         }
         logger.info("Login successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
-        console.log("Login successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
-        console.log("-");
         rssFeed(rss);
     })
 }
@@ -126,7 +131,6 @@ function login() {
 function rssFeed(rss) {
     let t0 = (new Date).getTime();
     logger.info("Getting RSS feed. This might take up to 20 seconds, please wait ...");
-    console.log("Getting RSS feed. This might take up to 20 seconds, please wait ...");
     request({
         url: rss,
         method: 'GET',
@@ -136,12 +140,9 @@ function rssFeed(rss) {
     }, (error, body) => {
         if (error) {
             logger.error(error);
-            console.error(error);
             return;
         }
         logger.info("RSS successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
-        console.log("RSS successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds. \n");
-        console.log("-");
         getInfos(body);
     })
 }
@@ -195,7 +196,6 @@ function getInfos(xmlBody) {
     // If nothing in the file information object has changed, don't rewrite the file
     if (!changed) {
         logger.info("No new files.");
-        console.log("No new files.");
         process.exit();
     }
 }
@@ -207,7 +207,6 @@ function getInfos(xmlBody) {
  */
 function downloadFile(subfolders, fileName, fileNumber) {
     logger.info(toDownloadCounter + " Downloading " + fileName + " ...");
-    console.log(toDownloadCounter + " Downloading " + fileName + " ...");
     let path = pathToDir + "/";
     // Build the folder structure one by one in order to mkdir for each new dir
     for (let i = 0; i < subfolders.length; i++) {
@@ -230,19 +229,15 @@ function downloadFile(subfolders, fileName, fileNumber) {
     }).pipe(file).on('finish', () => {
         downloadedCounter++;
         logger.info("(" + downloadedCounter + "/" + toDownloadCounter + ") Finished downloading: " + fileName);
-        console.log("(" + downloadedCounter + "/" + toDownloadCounter + ") Finished downloading: " + fileName);
         if (downloadedCounter == toDownloadCounter) {
             updateFileList();
-            console.log("-");
             logger.info("All files finished downloading.");
-            console.log("All files finished downloading.");
             setTimeout(function () {
                 process.exit();
             }, 1000);
         }
     }).on('error', (error) => {
         logger.error(error);
-        console.error(error);
         error = true;
     })
 }
@@ -256,22 +251,17 @@ function updateFileList() {
             if (err) {
                 logger.error("An error occurred, file list has not been updated.");
                 logger.error(err);
-                console.error("An error occurred, file list has not been updated.");
-                console.error(err);
             }
             logger.info("File list has been updated.");
-            console.log("File list has been updated.");
         });
     }
 }
 
 process.on("SIGINT", () => {
     logger.info("Process manually aborted by user.")
-    console.log("Process manually aborted by user.");
     process.exit();
 });
 
 process.on("exit", () => {
     logger.info("Process shutting down.");
-    console.log("Process shutting down.");
 })
