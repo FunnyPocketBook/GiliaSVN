@@ -196,7 +196,6 @@ function getInfos(xmlBody) {
     // If nothing in the file information object has changed, don't rewrite the file
     if (!changed) {
         logger.info("No new files.");
-        process.exit();
     }
 }
 
@@ -232,9 +231,6 @@ function downloadFile(subfolders, fileName, fileNumber) {
         if (downloadedCounter == toDownloadCounter) {
             updateFileList();
             logger.info("All files finished downloading.");
-            setTimeout(function () {
-                process.exit();
-            }, 1000);
         }
     }).on('error', (error) => {
         logger.error(error);
@@ -258,10 +254,8 @@ function updateFileList() {
 }
 
 process.on("SIGINT", () => {
-    logger.info("Process manually aborted by user.")
-    process.exit();
+    logger.info("Process manually aborted by user.");
+    log4js.shutdown(() => {
+        process.exit();
+    });
 });
-
-process.on("exit", () => {
-    logger.info("Process shutting down.");
-})
