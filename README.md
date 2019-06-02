@@ -1,7 +1,7 @@
 # ilias-scraper
 
 ## Warning!
-Due to a certificate error with some german universities, one of which the maintainers of this repository are attending, client-side certificate validation had to be disabled temporarily. As soon as the certificate issue has been resolved, cert validation will be re-enabled. 
+Due to a certificate error with some German universities, one of which the maintainers of this repository are attending, client-side certificate validation had to be disabled temporarily. As soon as the certificate issue has been resolved, cert validation will be re-enabled. 
 
 This introduces a potential security risk, as certificates are being trusted blindly at the moment. 
 In the meantime, if you are not affected by this, you can undo the changes by removing 
