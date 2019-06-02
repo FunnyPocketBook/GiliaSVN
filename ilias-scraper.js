@@ -9,7 +9,7 @@ const { JSDOM } = jsdom;
 const { document } = (new JSDOM('')).window;
 let config;
 try {
-    config = require('./configYk.js');
+    config = require('./config.js');
 } catch (e) {
     console.error("Please make sure that the link to the RSS feed is in one line and does not contain any line breaks.");
     process.exit();
