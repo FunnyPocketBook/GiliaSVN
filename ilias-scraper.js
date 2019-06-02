@@ -1,8 +1,6 @@
 const request = require('request');
 const jsdom = require('jsdom');
 const fs = require('fs');
-const sslRootCAs = require('ssl-root-cas/latest');
-const sslCertificate = require('get-ssl-certificate');
 const log4js = require('log4js');
 const parseString = require('xml2js').parseString;
 const { JSDOM } = jsdom;
@@ -45,17 +43,7 @@ if (!fs.existsSync(pathToDir)) {
     fs.mkdirSync(pathToDir);
 }
 
-sslCertificate.get('ilias.uni-konstanz.de').then(function (cert) {
-    if (!fs.existsSync("cert")) {
-        fs.mkdirSync("cert");
-    }
-    fs.writeFileSync("cert/ilias.pem", cert.pemEncoded);
-    logger.info("Downloaded latest certificate.");
-    console.log("Downloaded latest certificate.");
-    sslRootCAs.addFile("cert/ilias.pem");
-    require('https').globalAgent.options.ca = sslRootCAs;
-    getFileList();
-});
+getFileList();
 
 /**
  * Read existing data from files.json
