@@ -1,4 +1,6 @@
-const request = require('request');
+const request = require('request').defaults({
+    strictSSL: false
+});
 const jsdom = require('jsdom');
 const fs = require('fs');
 const log4js = require('log4js');
@@ -6,21 +8,23 @@ const parseString = require('xml2js').parseString;
 const { JSDOM } = jsdom;
 const { document } = (new JSDOM('')).window;
 
+
+
 log4js.configure({
     appenders: {
-        ilias: { 
-            type: 'file', 
-            filename: 'ilias.log' 
+        ilias: {
+            type: 'file',
+            filename: 'ilias.log'
         },
-        console: { 
-            type: 'console' 
+        console: {
+            type: 'console'
         }
     },
-    categories: { 
-        default: { 
-            appenders: ['ilias', 'console'], 
-            level: 'info' 
-        } 
+    categories: {
+        default: {
+            appenders: ['ilias', 'console'],
+            level: 'info'
+        }
     }
 });
 
@@ -102,8 +106,7 @@ function login() {
         method: 'POST',
         followAllRedirects: true,
         form: data,
-        jar: true,
-        strictSSL: false
+        jar: true
     }, (error, response, body) => {
         const dom = new JSDOM(body);
         if (error) {
@@ -135,8 +138,7 @@ function rssFeed(rss) {
         url: rss,
         method: 'GET',
         followAllRedirects: true,
-        jar: true,
-        strictSSL: false
+        jar: true
     }, (error, body) => {
         if (error) {
             logger.error(error);
@@ -223,8 +225,7 @@ function downloadFile(subfolders, fileName, fileNumber) {
         url: "https://ilias.uni-konstanz.de/ilias/goto_ilias_uni_file_" + fileNumber + "_download.html",
         method: 'GET',
         followAllRedirects: true,
-        jar: true,
-        strictSSL: false
+        jar: true
     }).pipe(file).on('finish', () => {
         downloadedCounter++;
         logger.info("(" + downloadedCounter + "/" + toDownloadCounter + ") Finished downloading: " + fileName);
