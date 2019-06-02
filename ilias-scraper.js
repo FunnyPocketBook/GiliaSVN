@@ -1,13 +1,16 @@
 const request = require('request');
 const jsdom = require('jsdom');
 const fs = require('fs');
+const sslRootCAs = require('ssl-root-cas/latest');
+const sslCertificate = require('get-ssl-certificate');
+const log4js = require('log4js');
 const parseString = require('xml2js').parseString;
 const { JSDOM } = jsdom;
 const { document } = (new JSDOM('')).window;
 let config;
 try {
-    config = require('./config.js');
-} catch(e) {
+    config = require('./configYk.js');
+} catch (e) {
     console.error("Please make sure that the link to the RSS feed is in one line and does not contain any line breaks.");
     process.exit();
 }
@@ -23,19 +26,36 @@ const data = {
 const pathToDir = config.userData.downloadDir.replace(/\\/g, "/");
 const rss = config.userData.privateRssFeed.replace("-password-", config.userData.passwordRss);
 
-
 let fileList = {}; // Stores file infos
 let ignoreList = []; // Stores files to ignore
 let downloadedCounter = 0;
 let toDownloadCounter = 0;
 let error = false;
+let logger;
+
+log4js.configure({
+    appenders: { ilias: { type: 'file', filename: 'ilias.log' } },
+    categories: { default: { appenders: ['ilias'], level: 'info' } }
+});
+
+logger = log4js.getLogger('ilias');
 
 // Check if the pathToDir exists and if not, create it
 if (!fs.existsSync(pathToDir)) {
     fs.mkdirSync(pathToDir);
 }
 
-getFileList();
+sslCertificate.get('ilias.uni-konstanz.de').then(function (cert) {
+    if (!fs.existsSync("cert")) {
+        fs.mkdirSync("cert");
+    }
+    fs.writeFileSync("cert/ilias.pem", cert.pemEncoded);
+    logger.info("Downloaded latest certificate.");
+    console.log("Downloaded latest certificate.");
+    sslRootCAs.addFile("cert/ilias.pem");
+    require('https').globalAgent.options.ca = sslRootCAs;
+    getFileList();
+});
 
 /**
  * Read existing data from files.json
@@ -43,9 +63,10 @@ getFileList();
 function getFileList() {
     if (!fs.existsSync("./" + fileFile)) {
         fs.closeSync(fs.openSync("./" + fileFile, 'w'))
-    }   
+    }
     fs.readFile(fileFile, function (err, data) {
         if (err) {
+            logger.error(err);
             console.error(err);
         }
         if (data.length > 0) {
@@ -55,14 +76,15 @@ function getFileList() {
 
     if (!fs.existsSync("./" + "ignore.txt")) {
         fs.closeSync(fs.openSync("./" + "ignore.txt", 'w'))
-    }   
+    }
     fs.readFile("ignore.txt", function (err, data) {
         if (err) {
+            logger.error(err);
             console.error(err);
         }
         if (data.length > 0) {
-            let array = data.toString().replace(/\r\n/g,'\n').split('\n');
-            for(i in array) {
+            let array = data.toString().replace(/\r\n/g, '\n').split('\n');
+            for (i in array) {
                 ignoreList.push(array[i]);
             }
         }
@@ -75,29 +97,35 @@ function getFileList() {
  */
 function login() {
     let t0 = (new Date).getTime();
+    logger.info("Logging in ...");
     console.log("Logging in ...");
     request({
         url: url,
         method: 'POST',
         followAllRedirects: true,
         form: data,
-        jar: true
+        jar: true,
+        strictSSL: false
     }, (error, response, body) => {
         const dom = new JSDOM(body);
         if (error) {
+            logger.error(error);
             console.error(error);
             return;
         }
         if (dom.window.document.querySelectorAll(".alert-danger").length != 0) {
             if (response.statusCode != 200) {
+                logger.info("Status code: " + response.statusCode);
                 console.log("Status code: " + response.statusCode);
             }
             dom.window.document.querySelectorAll(".alert-danger").forEach(function (e) {
+                logger.error(e.textContent.trim());
                 console.error(e.textContent.trim());
             })
             process.exit();
             return;
         }
+        logger.info("Login successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
         console.log("Login successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
         console.log("-");
         rssFeed(rss);
@@ -109,17 +137,21 @@ function login() {
  */
 function rssFeed(rss) {
     let t0 = (new Date).getTime();
+    logger.info("Getting RSS feed. This might take up to 20 seconds, please wait ...");
     console.log("Getting RSS feed. This might take up to 20 seconds, please wait ...");
     request({
         url: rss,
         method: 'GET',
         followAllRedirects: true,
-        jar: true
+        jar: true,
+        strictSSL: false
     }, (error, body) => {
         if (error) {
+            logger.error(error);
             console.error(error);
             return;
         }
+        logger.info("RSS successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
         console.log("RSS successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds. \n");
         console.log("-");
         getInfos(body);
@@ -137,14 +169,14 @@ function getInfos(xmlBody) {
     });
     for (let i = 0; i < xml.rss.channel[0].item.length; i++) {
         // For each link that contains "target=file" (meaning there is a file to download), get the infos of that entry
-        if (xml.rss.channel[0].item[i].link[0].includes("target=file")) { 
+        if (xml.rss.channel[0].item[i].link[0].includes("target=file")) {
             let course = xml.rss.channel[0].item[i].title[0].match(/\[(.*?)\]/)[1];
             let subfolders = course.split(" > ");
             let fileName = xml.rss.channel[0].item[i].title[0].match(/]\s(.*): Die Datei/)[1]; // TODO: Match the name without "Die Datei"
             let fileNumber = xml.rss.channel[0].item[i].link[0].match(/file_(\d*)/)[1];
             let fileDate = xml.rss.channel[0].item[i].pubDate[0];
             let temp = fileList;
-            
+
             // Build up the object one key by one
             for (let j = 0; j < subfolders.length; j++) {
                 if (!temp[subfolders[j]]) {
@@ -161,7 +193,7 @@ function getInfos(xmlBody) {
                             downloadFile(subfolders, fileName, fileNumber);
                         }
                     } else if (temp[fileName] == undefined) { // If file doesn't exist
-                        temp[fileName] = {"fileNumber": fileNumber, "fileDate": fileDate};
+                        temp[fileName] = { "fileNumber": fileNumber, "fileDate": fileDate };
                         changed = true;
                         if (!ignoreList.includes(fileName)) {
                             toDownloadCounter++;
@@ -174,6 +206,7 @@ function getInfos(xmlBody) {
     }
     // If nothing in the file information object has changed, don't rewrite the file
     if (!changed) {
+        logger.info("No new files.");
         console.log("No new files.");
         process.exit();
     }
@@ -185,6 +218,7 @@ function getInfos(xmlBody) {
  * @param {*} fileNumber file number from getInfos() to download the file
  */
 function downloadFile(subfolders, fileName, fileNumber) {
+    logger.info(toDownloadCounter + " Downloading " + fileName + " ...");
     console.log(toDownloadCounter + " Downloading " + fileName + " ...");
     let path = pathToDir + "/";
     // Build the folder structure one by one in order to mkdir for each new dir
@@ -203,20 +237,24 @@ function downloadFile(subfolders, fileName, fileNumber) {
         url: "https://ilias.uni-konstanz.de/ilias/goto_ilias_uni_file_" + fileNumber + "_download.html",
         method: 'GET',
         followAllRedirects: true,
-        jar: true
+        jar: true,
+        strictSSL: false
     }).pipe(file).on('finish', () => {
         downloadedCounter++;
+        logger.info("(" + downloadedCounter + "/" + toDownloadCounter + ") Finished downloading: " + fileName);
         console.log("(" + downloadedCounter + "/" + toDownloadCounter + ") Finished downloading: " + fileName);
         if (downloadedCounter == toDownloadCounter) {
             updateFileList();
             console.log("-");
+            logger.info("All files finished downloading.");
             console.log("All files finished downloading.");
-            setTimeout(function() {
+            setTimeout(function () {
                 process.exit();
             }, 1000);
         }
     }).on('error', (error) => {
-        console.log(error);
+        logger.error(error);
+        console.error(error);
         error = true;
     })
 }
@@ -228,19 +266,24 @@ function updateFileList() {
     if (!error) {
         fs.writeFile(fileFile, JSON.stringify(fileList, null, 4), (err) => {
             if (err) {
+                logger.error("An error occurred, file list has not been updated.");
+                logger.error(err);
                 console.error("An error occurred, file list has not been updated.");
                 console.error(err);
             }
+            logger.info("File list has been updated.");
             console.log("File list has been updated.");
         });
     }
 }
 
 process.on("SIGINT", () => {
+    logger.info("Process manually aborted by user.")
     console.log("Process manually aborted by user.");
     process.exit();
 });
 
 process.on("exit", () => {
+    logger.info("Process shutting down.");
     console.log("Process shutting down.");
 })
