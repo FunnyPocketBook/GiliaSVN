@@ -1,4 +1,15 @@
 # ilias-scraper
+
+## Warning!
+Due to a certificate error with some german universities, one of which the maintainers of this repository are attending, client-side certificate validation had to be disabled temporarily. As soon as the certificate issue has been resolved, cert validation will be re-enabled. 
+
+This introduces a potential security risk, as certificates are being trusted blindly at the moment. 
+In the meantime, if you are not affected by this, you can undo the changes by removing 
+
+```strictSSL: false``` 
+
+in the [login request options](https://github.com/FunnyPocketBook/ilias-scraper/blob/53388b11aaaaf3116d9eed73bf6deb953c867e48/ilias-scraper.js#L106).
+
 ## How to use
 
 1. Install Node.js
