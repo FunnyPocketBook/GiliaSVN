@@ -68,3 +68,9 @@ typings/
 # vscode
 .vscode/*
 ignore.txt
+
+# runscript
+run.vbs
+cert/cacert.crt
+cert/DT_ROOT_CA_2.cer
+cert/ilias.pem

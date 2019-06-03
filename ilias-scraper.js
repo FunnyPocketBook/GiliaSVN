@@ -1,6 +1,9 @@
-const request = require('request');
+const request = require('request').defaults({
+    strictSSL: false
+});
 const jsdom = require('jsdom');
 const fs = require('fs');
+const log4js = require('log4js');
 const parseString = require('xml2js').parseString;
 const { JSDOM } = jsdom;
 const { document } = (new JSDOM('')).window;
@@ -35,7 +38,6 @@ try {
 const fileFile = config.userData.savedFilesDir + "/files.json";
 const ignoreFile = config.userData.ignoreDir + "/ignore.txt";
 global.document = document;
-
 const url = "https://ilias.uni-konstanz.de/ilias/ilias.php?lang=de&client_id=ilias_uni&cmd=post&cmdClass=ilstartupgui&cmdNode=vl&baseClass=ilStartUpGUI&rtoken=";
 const data = {
     "username": config.userData.user,
@@ -45,12 +47,12 @@ const data = {
 const pathToDir = config.userData.downloadDir.replace(/\\/g, "/");
 const rss = config.userData.privateRssFeed.replace("-password-", config.userData.passwordRss);
 
-
 let fileList = {}; // Stores file infos
 let ignoreList = []; // Stores files to ignore
 let downloadedCounter = 0;
 let toDownloadCounter = 0;
 let error = false;
+
 
 // Check if the pathToDir exists and if not, create it
 if (!fs.existsSync(pathToDir)) {
@@ -68,7 +70,7 @@ function getFileList() {
     }
     fs.readFile(fileFile, function (err, data) {
         if (err) {
-            console.error(err);
+            logger.error(err);
         }
         if (data.length > 0) {
             fileList = JSON.parse(data);
@@ -80,11 +82,11 @@ function getFileList() {
     }
     fs.readFile(ignoreFile, function (err, data) {
         if (err) {
-            console.error(err);
+            logger.error(err);
         }
         if (data.length > 0) {
-            let array = data.toString().replace(/\r\n/g,'\n').split('\n');
-            for(i in array) {
+            let array = data.toString().replace(/\r\n/g, '\n').split('\n');
+            for (i in array) {
                 ignoreList.push(array[i]);
             }
         }
@@ -97,7 +99,7 @@ function getFileList() {
  */
 function login() {
     let t0 = (new Date).getTime();
-    console.log("Logging in ...");
+    logger.info("Logging in ...");
     request({
         url: url,
         method: 'POST',
@@ -107,21 +109,20 @@ function login() {
     }, (error, response, body) => {
         const dom = new JSDOM(body);
         if (error) {
-            console.error(error);
+            logger.error(error);
             return;
         }
         if (dom.window.document.querySelectorAll(".alert-danger").length != 0) {
             if (response.statusCode != 200) {
-                console.log("Status code: " + response.statusCode);
+                logger.info("Status code: " + response.statusCode);
             }
             dom.window.document.querySelectorAll(".alert-danger").forEach(function (e) {
-                console.error(e.textContent.trim());
+                logger.error(e.textContent.trim());
             })
             process.exit();
             return;
         }
-        console.log("Login successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
-        console.log("-");
+        logger.info("Login successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
         rssFeed(rss);
     })
 }
@@ -131,7 +132,7 @@ function login() {
  */
 function rssFeed(rss) {
     let t0 = (new Date).getTime();
-    console.log("Getting RSS feed. This might take up to 20 seconds, please wait ...");
+    logger.info("Getting RSS feed. This might take up to 20 seconds, please wait ...");
     request({
         url: rss,
         method: 'GET',
@@ -139,11 +140,10 @@ function rssFeed(rss) {
         jar: true
     }, (error, body) => {
         if (error) {
-            console.error(error);
+            logger.error(error);
             return;
         }
-        console.log("RSS successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds. \n");
-        console.log("-");
+        logger.info("RSS successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
         getInfos(body);
     })
 }
@@ -159,14 +159,14 @@ function getInfos(xmlBody) {
     });
     for (let i = 0; i < xml.rss.channel[0].item.length; i++) {
         // For each link that contains "target=file" (meaning there is a file to download), get the infos of that entry
-        if (xml.rss.channel[0].item[i].link[0].includes("target=file")) { 
+        if (xml.rss.channel[0].item[i].link[0].includes("target=file")) {
             let course = xml.rss.channel[0].item[i].title[0].match(/\[(.*?)\]/)[1];
             let subfolders = course.split(" > ");
             let fileName = xml.rss.channel[0].item[i].title[0].match(/]\s(.*): Die Datei/)[1]; // TODO: Match the name without "Die Datei"
             let fileNumber = xml.rss.channel[0].item[i].link[0].match(/file_(\d*)/)[1];
             let fileDate = xml.rss.channel[0].item[i].pubDate[0];
             let temp = fileList;
-            
+
             // Build up the object one key by one
             for (let j = 0; j < subfolders.length; j++) {
                 if (!temp[subfolders[j]]) {
@@ -183,7 +183,7 @@ function getInfos(xmlBody) {
                             downloadFile(subfolders, fileName, fileNumber);
                         }
                     } else if (temp[fileName] == undefined) { // If file doesn't exist
-                        temp[fileName] = {"fileNumber": fileNumber, "fileDate": fileDate};
+                        temp[fileName] = { "fileNumber": fileNumber, "fileDate": fileDate };
                         changed = true;
                         if (!ignoreList.includes(fileName)) {
                             toDownloadCounter++;
@@ -196,8 +196,7 @@ function getInfos(xmlBody) {
     }
     // If nothing in the file information object has changed, don't rewrite the file
     if (!changed) {
-        console.log("No new files.");
-        process.exit();
+        logger.info("No new files.");
     }
 }
 
@@ -207,7 +206,7 @@ function getInfos(xmlBody) {
  * @param {*} fileNumber file number from getInfos() to download the file
  */
 function downloadFile(subfolders, fileName, fileNumber) {
-    console.log(toDownloadCounter + " Downloading " + fileName + " ...");
+    logger.info(toDownloadCounter + " Downloading " + fileName + " ...");
     let path = pathToDir + "/";
     // Build the folder structure one by one in order to mkdir for each new dir
     for (let i = 0; i < subfolders.length; i++) {
@@ -228,17 +227,13 @@ function downloadFile(subfolders, fileName, fileNumber) {
         jar: true
     }).pipe(file).on('finish', () => {
         downloadedCounter++;
-        console.log("(" + downloadedCounter + "/" + toDownloadCounter + ") Finished downloading: " + fileName);
+        logger.info("(" + downloadedCounter + "/" + toDownloadCounter + ") Finished downloading: " + fileName);
         if (downloadedCounter == toDownloadCounter) {
             updateFileList();
-            console.log("-");
-            console.log("All files finished downloading.");
-            setTimeout(function() {
-                process.exit();
-            }, 1000);
+            logger.info("All files finished downloading.");
         }
     }).on('error', (error) => {
-        console.log(error);
+        logger.error(error);
         error = true;
     })
 }
@@ -250,19 +245,17 @@ function updateFileList() {
     if (!error) {
         fs.writeFile(fileFile, JSON.stringify(fileList, null, 4), (err) => {
             if (err) {
-                console.error("An error occurred, file list has not been updated.");
-                console.error(err);
+                logger.error("An error occurred, file list has not been updated.");
+                logger.error(err);
             }
-            console.log("File list has been updated.");
+            logger.info("File list has been updated.");
         });
     }
 }
 
 process.on("SIGINT", () => {
-    console.log("Process manually aborted by user.");
-    process.exit();
+    logger.info("Process manually aborted by user.");
+    log4js.shutdown(() => {
+        process.exit();
+    });
 });
-
-process.on("exit", () => {
-    console.log("Process shutting down.");
-})
