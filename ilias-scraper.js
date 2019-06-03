@@ -35,8 +35,9 @@ try {
         process.exit();
     });
 }
-const fileFile = config.userData.savedFilesDir + "/files.json";
-const ignoreFile = config.userData.ignoreDir + "/ignore.txt";
+const pathToDir = config.userData.downloadDir;
+const fileFile = config.userData.savedFilesDir + "files.json";
+const ignoreFile = config.userData.ignoreDir + "ignore.txt";
 global.document = document;
 const url = "https://ilias.uni-konstanz.de/ilias/ilias.php?lang=de&client_id=ilias_uni&cmd=post&cmdClass=ilstartupgui&cmdNode=vl&baseClass=ilStartUpGUI&rtoken=";
 const data = {
@@ -44,7 +45,6 @@ const data = {
     "password": config.userData.passwordIlias,
     "cmd[doStandardAuthentication]": "Anmelden"
 }
-const pathToDir = config.userData.downloadDir.replace(/\\/g, "/");
 const rss = config.userData.privateRssFeed.replace("-password-", config.userData.passwordRss);
 
 let fileList = {}; // Stores file infos

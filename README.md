@@ -77,9 +77,9 @@ exports.userData = {
     passwordIlias: "hunter2",
     privateRssFeed: "https://ying-kai.dang:-password-@ilias.uni-konstanz.de/ilias/privfeed.php?client_id=ilias_uni&user_id=userid&hash=hash",
     passwordRss: "hunter2Rss",
-    downloadDir: "C:/Users/user/iliasFiles",
-    savedFilesDir: "C:/Users/user/iliasFiles",
-    ignoreDir: "C:/Users/user/iliasFiles"
+    downloadDir: "C:/Users/user/iliasFiles/",
+    savedFilesDir: "C:/Users/user/iliasFiles/",
+    ignoreDir: "C:/Users/user/iliasFiles/"
 };
 ```
 
