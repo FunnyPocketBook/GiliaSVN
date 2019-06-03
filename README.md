@@ -12,7 +12,9 @@
     passwordIlias: "hunter2",
     privateRssFeed: "https://ying-kai.dang:-password-@ilias.uni-konstanz.de/ilias/privfeed.php?client_id=ilias_uni&user_id=userid&hash=hash",
     passwordRss: "hunter2Rss",
-    downloadDir: "C:/Users/user/iliasFiles"
+    downloadDir: "C:/Users/user/iliasFiles",
+    savedFilesDir: "path to files.json",
+    ignoreDir: "path to ignore.txt"
     };
     ```
 6. Rename config-template.js to config.js
@@ -48,6 +50,8 @@ Enter your ILIAS username and password in the placeholders. The username is usua
 
 Create a folder somewhere where the files should be downloaded to. Then copy the  path to that location (e.g. `C:/Users/user/iliasFiles`) and replace `path to download directory` with the path you copied. <b>Please replace any backslashes `\` with forward slashes `/`</b>. The path should only have backslashes if you are using a Windows system.
 
+You also need to provide the path where the `files.json` and `ignore.txt` files are located. `files.json` saves all files that are already downloaded and in `ignore.txt` you can put in the files that you don't want to download. Setting the paths for these files can be useful if you are sharing the files with other people with e.g. Google Drive.
+
 Example config:
 ```javascript
 exports.userData = {
@@ -55,13 +59,11 @@ exports.userData = {
     passwordIlias: "hunter2",
     privateRssFeed: "https://ying-kai.dang:-password-@ilias.uni-konstanz.de/ilias/privfeed.php?client_id=ilias_uni&user_id=userid&hash=hash",
     passwordRss: "hunter2Rss",
-    downloadDir: "C:/Users/user/iliasFiles"
+    downloadDir: "C:/Users/user/iliasFiles",
+    savedFilesDir: "C:/Users/user/iliasFiles",
+    ignoreDir: "C:/Users/user/iliasFiles"
 };
 ```
-
-#### Ignore Files
-
-If you want to ignore files/not download certain files, create a file called `ignore.txt` in the same directory and add one filename per line. Those files won't be downloaded.
 
 ### Usage
 Open the terminal at the location of downloaded files. Enter

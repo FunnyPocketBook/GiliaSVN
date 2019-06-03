@@ -4,14 +4,36 @@ const fs = require('fs');
 const parseString = require('xml2js').parseString;
 const { JSDOM } = jsdom;
 const { document } = (new JSDOM('')).window;
+log4js.configure({
+    appenders: {
+        ilias: {
+            type: 'file',
+            filename: 'ilias.log'
+        },
+        console: {
+            type: 'console'
+        }
+    },
+    categories: {
+        default: {
+            appenders: ['ilias', 'console'],
+            level: 'info'
+        }
+    }
+});
+const logger = log4js.getLogger('ilias');
+
 let config;
 try {
     config = require('./config.js');
-} catch(e) {
-    console.error("Please make sure that the link to the RSS feed is in one line and does not contain any line breaks.");
-    process.exit();
+} catch (e) {
+    logger.error("Please make sure that the link to the RSS feed is in one line and does not contain any line breaks.");
+    log4js.shutdown(() => {
+        process.exit();
+    });
 }
-const fileFile = "files.json";
+const fileFile = config.userData.savedFilesDir + "/files.json";
+const ignoreFile = config.userData.ignoreDir + "/ignore.txt";
 global.document = document;
 
 const url = "https://ilias.uni-konstanz.de/ilias/ilias.php?lang=de&client_id=ilias_uni&cmd=post&cmdClass=ilstartupgui&cmdNode=vl&baseClass=ilStartUpGUI&rtoken=";
@@ -41,9 +63,9 @@ getFileList();
  * Read existing data from files.json
  */
 function getFileList() {
-    if (!fs.existsSync("./" + fileFile)) {
-        fs.closeSync(fs.openSync("./" + fileFile, 'w'))
-    }   
+    if (!fs.existsSync(fileFile)) {
+        fs.closeSync(fs.openSync(fileFile, 'w'))
+    }
     fs.readFile(fileFile, function (err, data) {
         if (err) {
             console.error(err);
@@ -53,10 +75,10 @@ function getFileList() {
         }
     });
 
-    if (!fs.existsSync("./" + "ignore.txt")) {
-        fs.closeSync(fs.openSync("./" + "ignore.txt", 'w'))
-    }   
-    fs.readFile("ignore.txt", function (err, data) {
+    if (!fs.existsSync(ignoreFile)) {
+        fs.closeSync(fs.openSync(ignoreFile, 'w'))
+    }
+    fs.readFile(ignoreFile, function (err, data) {
         if (err) {
             console.error(err);
         }
