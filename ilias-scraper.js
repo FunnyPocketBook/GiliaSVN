@@ -34,8 +34,8 @@ try {
     });
 }
 const pathToDir = config.userData.downloadDir;
-const fileFile = config.userData.savedFilesDir + "files.json";
-const ignoreFile = config.userData.ignoreDir + "ignore.txt";
+const fileFile = config.userData.savedFilesDir.endsWith("/") ? config.userData.savedFilesDir + "files.json" : config.userData.savedFilesDir + "/files.json";
+const ignoreFile = config.userData.ignoreDir.endsWith("/") ? config.userData.savedFilesDir + "ignore.txt" : config.userData.savedFilesDir + "/ignore.txt";
 global.document = document;
 const url = "https://ilias.uni-konstanz.de/ilias/ilias.php?lang=de&client_id=ilias_uni&cmd=post&cmdClass=ilstartupgui&cmdNode=vl&baseClass=ilStartUpGUI&rtoken=";
 const data = {
@@ -205,7 +205,7 @@ function getInfos(xmlBody) {
  */
 function downloadFile(subfolders, fileName, fileNumber) {
     logger.info(toDownloadCounter + " Downloading " + fileName + " ...");
-    let path = pathToDir + "/";
+    let path = pathToDir.endsWith("/") ? pathToDir : pathToDir + "/";
     // Build the folder structure one by one in order to mkdir for each new dir
     for (let i = 0; i < subfolders.length; i++) {
         path += subfolders[i].replace(/[/\\?%*:|"<>]/g, '-');
