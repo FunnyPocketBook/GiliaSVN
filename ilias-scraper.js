@@ -1,6 +1,4 @@
-const request = require('request').defaults({
-    strictSSL: false
-});
+const request = require('request');
 const jsdom = require('jsdom');
 const fs = require('fs');
 const log4js = require('log4js');
