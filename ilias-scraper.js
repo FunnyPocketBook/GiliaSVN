@@ -24,6 +24,7 @@ log4js.configure({
     }
 });
 const logger = log4js.getLogger('ilias');
+logger.info("-----");
 
 let config;
 try {
