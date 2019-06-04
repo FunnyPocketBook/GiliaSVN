@@ -5,6 +5,7 @@ const log4js = require('log4js');
 const parseString = require('xml2js').parseString;
 const { JSDOM } = jsdom;
 const { document } = (new JSDOM('')).window;
+global.document = document;
 log4js.configure({
     appenders: {
         ilias: {
@@ -33,10 +34,9 @@ try {
         process.exit();
     });
 }
-const pathToDir = config.userData.downloadDir;
+const pathToDir = config.userData.downloadDir.endsWith("/") ? config.userData.downloadDir : config.userData.downloadDir + "/";
 const fileFile = config.userData.savedFilesDir.endsWith("/") ? config.userData.savedFilesDir + "files.json" : config.userData.savedFilesDir + "/files.json";
 const ignoreFile = config.userData.ignoreDir.endsWith("/") ? config.userData.savedFilesDir + "ignore.txt" : config.userData.savedFilesDir + "/ignore.txt";
-global.document = document;
 const url = "https://ilias.uni-konstanz.de/ilias/ilias.php?lang=de&client_id=ilias_uni&cmd=post&cmdClass=ilstartupgui&cmdNode=vl&baseClass=ilStartUpGUI&rtoken=";
 const data = {
     "username": config.userData.user,
@@ -51,7 +51,9 @@ let downloadedCounter = 0;
 let toDownloadCounter = 0;
 let error = false;
 
-
+logger.info("Download path: " + pathToDir);
+logger.info("File list path: " + fileFile);
+logger.info("Ignore file path: " + ignoreFile);
 // Check if the pathToDir exists and if not, create it
 if (!fs.existsSync(pathToDir)) {
     fs.mkdirSync(pathToDir);
@@ -205,7 +207,7 @@ function getInfos(xmlBody) {
  */
 function downloadFile(subfolders, fileName, fileNumber) {
     logger.info(toDownloadCounter + " Downloading " + fileName + " ...");
-    let path = pathToDir.endsWith("/") ? pathToDir : pathToDir + "/";
+    let path = pathToDir;
     // Build the folder structure one by one in order to mkdir for each new dir
     for (let i = 0; i < subfolders.length; i++) {
         path += subfolders[i].replace(/[/\\?%*:|"<>]/g, '-');
