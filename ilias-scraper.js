@@ -10,7 +10,9 @@ log4js.configure({
     appenders: {
         ilias: {
             type: 'file',
-            filename: 'ilias.log'
+            filename: 'ilias.log',
+            maxLogSize: 1048576,
+            compress: true
         },
         console: {
             type: 'console'
@@ -26,6 +28,7 @@ log4js.configure({
 const logger = log4js.getLogger('ilias');
 logger.info("-----");
 
+let cookie = request.jar();
 let config;
 try {
     config = require('./config.js');
@@ -106,9 +109,13 @@ function login() {
         method: 'POST',
         followAllRedirects: true,
         form: data,
-        jar: true
+        jar: cookie
     }, (error, response, body) => {
         const dom = new JSDOM(body);
+        cookie._jar.store.getAllCookies(function(err, cookieArray) {
+            if(err) throw new Error("Failed to get cookies");
+            logger.debug(JSON.stringify(cookieArray, null, 4));
+        });
         if (error) {
             logger.error(error);
             return;
@@ -138,7 +145,7 @@ function rssFeed(rss) {
         url: rss,
         method: 'GET',
         followAllRedirects: true,
-        jar: true
+        jar: cookie
     }, (error, body) => {
         if (error) {
             logger.error(error);
@@ -225,7 +232,7 @@ function downloadFile(subfolders, fileName, fileNumber) {
         url: "https://ilias.uni-konstanz.de/ilias/goto_ilias_uni_file_" + fileNumber + "_download.html",
         method: 'GET',
         followAllRedirects: true,
-        jar: true
+        jar: cookie
     }).pipe(file).on('finish', () => {
         downloadedCounter++;
         logger.info("(" + downloadedCounter + "/" + toDownloadCounter + ") Finished downloading: " + fileName);
