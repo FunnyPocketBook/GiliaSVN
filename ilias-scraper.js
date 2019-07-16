@@ -242,7 +242,10 @@ function downloadFile(subfolders, fileName, fileNumber) {
         url: "https://ilias.uni-konstanz.de/ilias/goto_ilias_uni_file_" + fileNumber + "_download.html",
         method: 'GET',
         followAllRedirects: true,
-        jar: cookie
+        jar: cookie,
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.111 Safari/537.36'
+        }
     }).pipe(file).on('finish', () => {
         downloadedCounter++;
         logger.info("(" + downloadedCounter + "/" + toDownloadCounter + ") Finished downloading: " + fileName);
