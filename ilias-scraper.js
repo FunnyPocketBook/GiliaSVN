@@ -109,13 +109,20 @@ function login() {
         method: 'POST',
         followAllRedirects: true,
         form: data,
-        jar: cookie
+        jar: cookie,
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.111 Safari/537.36'
+        }
     }, (error, response, body) => {
         const dom = new JSDOM(body);
         cookie._jar.store.getAllCookies(function(err, cookieArray) {
             if(err) throw new Error("Failed to get cookies");
             logger.debug(JSON.stringify(cookieArray, null, 4));
         });
+        if (response.statusCode != 200) {
+            logger.error("Status code " + response.statusCode);
+            return;
+        }
         if (error) {
             logger.error(error);
             return;
@@ -145,7 +152,10 @@ function rssFeed(rss) {
         url: rss,
         method: 'GET',
         followAllRedirects: true,
-        jar: cookie
+        jar: cookie,
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.111 Safari/537.36'
+        }
     }, (error, body) => {
         if (error) {
             logger.error(error);
