@@ -19,7 +19,7 @@
   "dependencies": {
     "fs": "0.0.1-security",
     "jsdom": "^15.1.1",
-    "log4js": "^4.5.1",
+    "log4js": "^5.2.0",
     "request": "^2.88.0",
     "xml2js": "^0.4.19"
   }
