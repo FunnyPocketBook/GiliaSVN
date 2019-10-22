@@ -142,7 +142,9 @@ function login() {
         logger.info("Login successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
         rssFeed(rss);
     });
-    addSvnRepo();
+    if (svnRepo.length > 0) {
+        addSvnRepo();
+    }
 }
 
 /**
@@ -241,6 +243,9 @@ function addSvnRepo() {
         let folder = url.replace("https://svn.uni-konstanz.de/", "").replace(/\/$/, "").split("/").slice(1).join("/");
         // Only checkout repo if it isn't a working copy already
         svnUltimate.commands.info(pathToDir + folder, function (err, res) {
+            if (err) {
+                logger.error("Something went wrong. Please check if you have a SVN command line client installed or if the SVN URL is correct.");
+            }
             if (res == null) {
                 svnUltimate.commands.checkout(url, pathToDir + folder, {trustServerCert: true, username: config.userData.user, password: config.userData.passwordIlias}, function (err) {
                     err ? logger.error("Checkout of " + url + " failed!") : logger.info("Checkout of " + url + " complete.");
@@ -258,6 +263,9 @@ function updateSvnRepo() {
     svnRepo.forEach((url) => {
         let folder = url.replace("https://svn.uni-konstanz.de/", "").replace(/\/$/, "").split("/").slice(1).join("/");
         svnUltimate.commands.info(pathToDir + folder, function (err, res) {
+            if (err) {
+                logger.error("Something went wrong. Please check if you have a SVN command line client installed or if the SVN URL is correct.");
+            }
             // Only update repo if it is a working copy
             if (res !== null) {
                 svnUltimate.commands.update(pathToDir + folder, {trustServerCert: true, username: config.userData.user, password: config.userData.passwordIlias}, function (err) {
