@@ -4,7 +4,7 @@ const fs = require('fs');
 const log4js = require('log4js');
 const parseString = require('xml2js').parseString;
 const { JSDOM } = jsdom;
-const svnUltimate = require('node-svn-ultimate');
+const svnSpawn = require('svn-spawn');
 const { document } = (new JSDOM('')).window;
 global.document = document;
 log4js.configure({
@@ -208,16 +208,16 @@ function getInfos(xmlBody) {
                 temp = temp[subfolders[j]];
                 if (j == subfolders.length - 1) {
                     // If file already exists and new file is newer than saved one, download and replace it and update timestamp
-                    if (temp[fileName] != undefined && new Date(fileDate) > new Date(temp[fileName].fileDate)) { 
+                    if (temp[fileName] != undefined && new Date(fileDate) > new Date(temp[fileName].fileDate)) {
                         temp[fileName].fileDate = fileDate;
                         changed = true;
                         if (!ignoreList.includes(fileName)) {
                             toDownloadCounter++;
                             downloadFile(subfolders, fileName, fileNumber);
                         }
-                    } 
+                    }
                     // If file doesn't exist, download it and create new entry
-                    else if (temp[fileName] == undefined) { 
+                    else if (temp[fileName] == undefined) {
                         temp[fileName] = { "fileNumber": fileNumber, "fileDate": fileDate };
                         changed = true;
                         if (!ignoreList.includes(fileName)) {
@@ -231,9 +231,10 @@ function getInfos(xmlBody) {
     }
     // If nothing in the file information object has changed, don't rewrite the file
     if (!changed) {
-        logger.info("No new files.");
+        logger.info("No new files from RSS feed.");
     }
 }
+
 
 /**
  * Checkout SVN repositories
@@ -242,18 +243,27 @@ function addSvnRepo() {
     svnRepo.forEach((url) => {
         let folder = url.replace("https://svn.uni-konstanz.de/", "").replace(/\/$/, "").split("/").slice(1).join("/");
         // Only checkout repo if it isn't a working copy already
-        svnUltimate.commands.info(pathToDir + folder, function (err, res) {
+        let svn = new svnSpawn({
+            cwd: pathToDir + folder,
+            username: config.userData.user,
+            password: config.userData.passwordIlias,
+            noAuthCache: true,
+        });
+        if (!fs.existsSync(pathToDir + folder)) {
+            fs.mkdirSync(pathToDir + folder, { recursive: true });
+        }
+        // Check if path is working directory, if no checkout repo
+        svn.cmd(["info", pathToDir + folder], function (err, data) {
             if (err) {
-                logger.error("Something went wrong. Please check if you have a SVN command line client installed or if the SVN URL is correct.");
-            }
-            if (res == null) {
-                svnUltimate.commands.checkout(url, pathToDir + folder, {trustServerCert: true, username: config.userData.user, password: config.userData.passwordIlias}, function (err) {
-                    err ? logger.error("Checkout of " + url + " failed!") : logger.info("Checkout of " + url + " complete.");
-                });
+                if (err.message.includes("is not a working copy")) {
+                    svn.cmd(["checkout", url, pathToDir + folder], function (err, data) {
+                        err ? logger.error("Checkout of " + url + " failed! \r\n" + err.message) : logger.info("Checkout of " + url + " complete.");
+                    });
+                }
             }
         });
     });
-    updateSvnRepo();
+    setTimeout(updateSvnRepo, 1000);
 }
 
 /**
@@ -262,15 +272,20 @@ function addSvnRepo() {
 function updateSvnRepo() {
     svnRepo.forEach((url) => {
         let folder = url.replace("https://svn.uni-konstanz.de/", "").replace(/\/$/, "").split("/").slice(1).join("/");
-        svnUltimate.commands.info(pathToDir + folder, function (err, res) {
-            if (err) {
-                logger.error("Something went wrong. Please check if you have a SVN command line client installed or if the SVN URL is correct.");
-            }
-            // Only update repo if it is a working copy
-            if (res !== null) {
-                svnUltimate.commands.update(pathToDir + folder, {trustServerCert: true, username: config.userData.user, password: config.userData.passwordIlias}, function (err) {
-                    err ? logger.error("Update of " + url + " failed!") : logger.info("Update of " + url + " complete.");
+        let svn = new svnSpawn({
+            cwd: pathToDir + folder,
+            username: config.userData.user,
+            password: config.userData.passwordIlias,
+            noAuthCache: true,
+        });
+        // Check if path is working directory, if yes update repo
+        svn.cmd(["info", pathToDir + folder], function (err, data) {
+            if (!err) {
+                svn.cmd(["update", pathToDir + folder], function (err, data) {
+                    err ? logger.error("Update of " + url + " failed! \r\n" + err.message) : logger.info("Update of " + url + " complete.");
                 });
+            } else {
+                logger.error(err.message);
             }
         });
     });
