@@ -8,11 +8,12 @@
 4. Get your private RSS feed link on ILIAS
 5. Configure the `config-template.js` file. Replace any backslashes with forward slashes in the path and don't have a line break in the privateRssFeed link. Example:
     ```javascript
-    exports.userData = {
+    exports.userData {
     user: "ying-kai.dang",
     passwordIlias: "hunter2",
     privateRssFeed: "https://ying-kai.dang:-password-@ilias.uni-konstanz.de/ilias/privfeed.php?client_id=ilias_uni&user_id=userid&hash=hash",
     passwordRss: "hunter2Rss",
+    svnRepo: ["https://svn.uni-konstanz.de/dbis/kdp/pub/", "https://svn.uni-konstanz.de/dbis/kdi/pub/"],
     downloadDir: "C:/Users/user/iliasFiles/",
     savedFilesDir: "C:/Users/user/iliasFiles/",
     ignoreDir: "C:/Users/user/iliasFiles/"
@@ -43,6 +44,10 @@ Make sure the URL does not have any line breaks and is all in one line.
 
 ![ILIAS RSS link](https://i.imgur.com/0rUIp7M.png)
 
+#### SVN repositories
+
+Enter your SVN URLs into the `svnRepo` array. Each URL should be added as a new element. Leave the array empty `[]` if you don't want to include and SVN repos.
+
 #### Credentials
 
 Enter your ILIAS username and password in the placeholders. The username is usually `firstname.lastname`. In `passwordRss`, enter the password you set for the RSS feed. You can change it by clicking the cogwheel on the top right of the RSS feed on your ILIAS dashboard.
@@ -60,6 +65,7 @@ exports.userData = {
     passwordIlias: "hunter2",
     privateRssFeed: "https://ying-kai.dang:-password-@ilias.uni-konstanz.de/ilias/privfeed.php?client_id=ilias_uni&user_id=userid&hash=hash",
     passwordRss: "hunter2Rss",
+    svnRepo: ["https://svn.uni-konstanz.de/dbis/kdp/pub/", "https://svn.uni-konstanz.de/dbis/kdi/pub/"],
     downloadDir: "C:/Users/user/iliasFiles/",
     savedFilesDir: "C:/Users/user/iliasFiles/",
     ignoreDir: "C:/Users/user/iliasFiles/"
@@ -84,6 +90,9 @@ node ilias-scraper.js
 ## How it works
 After the initial the setup, the first execution will download all files that are listed in the RSS feed. Each file information (date, file ID, file name) will then be stored in an object in the file `files.json`.
 Every other execution will compare the upload date in the RSS feed of the file with the date of the file that has been stored in `files.json`. If the RSS date is more recent, that file will be downloaded again.
+
+The SVN repo will be saved in the same directory structure as the SVN URL. If the URL is `https://svn.uni-konstanz.de/dbis/kdp/pub/`, the files will be stores in `kdp/pub/`.
+Every new repository will be checked out if there no working copy exists at `kdp/pub/`. If a working copy already exists, it will only be updated.
 
 If you want to download specific files again, search for them in `files.json` and either delete them completely or change the date of that file to something in the past. 
 
