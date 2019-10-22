@@ -4,6 +4,7 @@ const fs = require('fs');
 const log4js = require('log4js');
 const parseString = require('xml2js').parseString;
 const { JSDOM } = jsdom;
+const svnUltimate = require('node-svn-ultimate');
 const { document } = (new JSDOM('')).window;
 global.document = document;
 log4js.configure({
@@ -41,6 +42,7 @@ try {
 const pathToDir = config.userData.downloadDir.endsWith("/") ? config.userData.downloadDir : config.userData.downloadDir + "/";
 const fileFile = config.userData.savedFilesDir.endsWith("/") ? config.userData.savedFilesDir + "files.json" : config.userData.savedFilesDir + "/files.json";
 const ignoreFile = config.userData.ignoreDir.endsWith("/") ? config.userData.savedFilesDir + "ignore.txt" : config.userData.savedFilesDir + "/ignore.txt";
+const svnRepo = config.userData.svnRepo;
 const url = "https://ilias.uni-konstanz.de/ilias/ilias.php?lang=de&client_id=ilias_uni&cmd=post&cmdClass=ilstartupgui&cmdNode=vp&baseClass=ilStartUpGUI&rtoken=";
 const data = {
     "username": config.userData.user,
@@ -115,8 +117,8 @@ function login() {
         }
     }, (error, response, body) => {
         const dom = new JSDOM(body);
-        cookie._jar.store.getAllCookies(function(err, cookieArray) {
-            if(err) throw new Error("Failed to get cookies");
+        cookie._jar.store.getAllCookies(function (err, cookieArray) {
+            if (err) throw new Error("Failed to get cookies");
             logger.debug(JSON.stringify(cookieArray, null, 4));
         });
         if (response.statusCode != 200) {
@@ -139,7 +141,8 @@ function login() {
         }
         logger.info("Login successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
         rssFeed(rss);
-    })
+    });
+    addSvnRepo();
 }
 
 /**
@@ -172,6 +175,15 @@ function rssFeed(rss) {
 function getInfos(xmlBody) {
     let xml;
     let changed = false;
+    if (xmlBody.statusCode !== 200) {
+        logger.error(xmlBody.statusCode + ": " + xmlBody.statusMessage);
+        switch (xmlBody.statusCode) {
+            case 401:
+                logger.error("Please check your login data.");
+                break;
+        }
+        return;
+    }
     parseString(xmlBody.body, function (err, result) {
         xml = result;
     });
@@ -193,14 +205,17 @@ function getInfos(xmlBody) {
                 }
                 temp = temp[subfolders[j]];
                 if (j == subfolders.length - 1) {
-                    if (temp[fileName] != undefined && new Date(fileDate) > new Date(temp[fileName].fileDate)) { // If file already exists and new file is newer than saved one
+                    // If file already exists and new file is newer than saved one, download and replace it and update timestamp
+                    if (temp[fileName] != undefined && new Date(fileDate) > new Date(temp[fileName].fileDate)) { 
                         temp[fileName].fileDate = fileDate;
                         changed = true;
                         if (!ignoreList.includes(fileName)) {
                             toDownloadCounter++;
                             downloadFile(subfolders, fileName, fileNumber);
                         }
-                    } else if (temp[fileName] == undefined) { // If file doesn't exist
+                    } 
+                    // If file doesn't exist, download it and create new entry
+                    else if (temp[fileName] == undefined) { 
                         temp[fileName] = { "fileNumber": fileNumber, "fileDate": fileDate };
                         changed = true;
                         if (!ignoreList.includes(fileName)) {
@@ -216,6 +231,41 @@ function getInfos(xmlBody) {
     if (!changed) {
         logger.info("No new files.");
     }
+}
+
+/**
+ * Checkout SVN repositories
+ */
+function addSvnRepo() {
+    svnRepo.forEach((url) => {
+        let folder = url.replace("https://svn.uni-konstanz.de/", "").replace(/\/$/, "").split("/").slice(1).join("/");
+        // Only checkout repo if it isn't a working copy already
+        svnUltimate.commands.info(pathToDir + folder, function (err, res) {
+            if (res == null) {
+                svnUltimate.commands.checkout(url, pathToDir + folder, {trustServerCert: true, username: config.userData.user, password: config.userData.passwordIlias}, function (err) {
+                    err ? logger.error("Checkout of " + url + " failed!") : logger.info("Checkout of " + url + " complete.");
+                });
+            }
+        });
+    });
+    updateSvnRepo();
+}
+
+/**
+ * Update SVN repositories
+ */
+function updateSvnRepo() {
+    svnRepo.forEach((url) => {
+        let folder = url.replace("https://svn.uni-konstanz.de/", "").replace(/\/$/, "").split("/").slice(1).join("/");
+        svnUltimate.commands.info(pathToDir + folder, function (err, res) {
+            // Only update repo if it is a working copy
+            if (res !== null) {
+                svnUltimate.commands.update(pathToDir + folder, {trustServerCert: true, username: config.userData.user, password: config.userData.passwordIlias}, function (err) {
+                    err ? logger.error("Update of " + url + " failed!") : logger.info("Update of " + url + " complete.");
+                });
+            }
+        });
+    });
 }
 
 /**
