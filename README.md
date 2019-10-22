@@ -46,7 +46,7 @@ Make sure the URL does not have any line breaks and is all in one line.
 
 #### SVN repositories
 
-Enter your SVN URLs into the `svnRepo` array. Each URL should be added as a new element.
+Enter your SVN URLs into the `svnRepo` array. Each URL should be added as a new element. Leave the array empty `[]` if you don't want to include and SVN repos.
 
 #### Credentials
 
