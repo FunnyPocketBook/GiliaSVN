@@ -255,7 +255,7 @@ function addSvnRepo() {
         // Check if path is working directory, if no checkout repo
         svn.cmd(["info", pathToDir + folder], function (err, data) {
             if (err) {
-                if (err.message.includes("is not a working copy") || "ist keine Arbeitskopie") {
+                if (err.message.includes("is not a working copy" || "ist keine Arbeitskopie")) {
                     svn.cmd(["checkout", url, pathToDir + folder], function (err, data) {
                         err ? logger.error("Checkout of " + url + " failed! \r\n" + err.message) : logger.info("Checkout of " + url + " complete.");
                     });
