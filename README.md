@@ -8,12 +8,12 @@
 4. Get your private RSS feed link on ILIAS
 5. Configure the `config-template.js` file. Replace any backslashes with forward slashes in the path and don't have a line break in the privateRssFeed link. Example:
     ```javascript
-    exports.userData = {
+    exports.userData {
     user: "ying-kai.dang",
     passwordIlias: "hunter2",
     privateRssFeed: "https://ying-kai.dang:-password-@ilias.uni-konstanz.de/ilias/privfeed.php?client_id=ilias_uni&user_id=userid&hash=hash",
     passwordRss: "hunter2Rss",
-    svnRepo = ["https://svn.uni-konstanz.de/dbis/kdp/pub/", "https://svn.uni-konstanz.de/dbis/kdi/pub/"],
+    svnRepo: ["https://svn.uni-konstanz.de/dbis/kdp/pub/", "https://svn.uni-konstanz.de/dbis/kdi/pub/"],
     downloadDir: "C:/Users/user/iliasFiles/",
     savedFilesDir: "C:/Users/user/iliasFiles/",
     ignoreDir: "C:/Users/user/iliasFiles/"
@@ -65,7 +65,7 @@ exports.userData = {
     passwordIlias: "hunter2",
     privateRssFeed: "https://ying-kai.dang:-password-@ilias.uni-konstanz.de/ilias/privfeed.php?client_id=ilias_uni&user_id=userid&hash=hash",
     passwordRss: "hunter2Rss",
-    svnRepo = ["https://svn.uni-konstanz.de/dbis/kdp/pub/", "https://svn.uni-konstanz.de/dbis/kdi/pub/"],
+    svnRepo: ["https://svn.uni-konstanz.de/dbis/kdp/pub/", "https://svn.uni-konstanz.de/dbis/kdi/pub/"],
     downloadDir: "C:/Users/user/iliasFiles/",
     savedFilesDir: "C:/Users/user/iliasFiles/",
     ignoreDir: "C:/Users/user/iliasFiles/"
