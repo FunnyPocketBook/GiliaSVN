@@ -43,7 +43,7 @@ const pathToDir = config.userData.downloadDir.endsWith("/") ? config.userData.do
 const fileFile = config.userData.savedFilesDir.endsWith("/") ? config.userData.savedFilesDir + "files.json" : config.userData.savedFilesDir + "/files.json";
 const ignoreFile = config.userData.ignoreDir.endsWith("/") ? config.userData.savedFilesDir + "ignore.txt" : config.userData.savedFilesDir + "/ignore.txt";
 const svnRepo = config.userData.svnRepo;
-const url = "https://ilias.uni-konstanz.de/ilias/ilias.php?lang=de&client_id=ilias_uni&cmd=post&cmdClass=ilstartupgui&cmdNode=vp&baseClass=ilStartUpGUI&rtoken=";
+//const url = "https://ilias.uni-konstanz.de/ilias/ilias.php?lang=de&client_id=ilias_uni&cmd=post&cmdClass=ilstartupgui&cmdNode=xp&baseClass=ilStartUpGUI&rtoken=";
 const data = {
     "username": config.userData.user,
     "password": config.userData.passwordIlias,
@@ -97,23 +97,38 @@ function getFileList() {
             }
         }
     });
-    login();
+    //login();
+    getLoginLink();
+}
+
+function getLoginLink() {
+    request({
+        url: "https://ilias.uni-konstanz.de/ilias/login.php",
+        method: 'GET',
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.111 Safari/537.36'
+        }
+    }, (error, response, body) => {
+        const dom = new JSDOM(body);
+        login(dom.window.document.querySelector("#form_").getAttribute("action"));
+    })
 }
 
 /**
  * Login to ilias
  */
-function login() {
+function login(url) {
     let t0 = (new Date).getTime();
     logger.info("Logging in ...");
     request({
-        url: url,
+        url: "https://ilias.uni-konstanz.de/ilias/" + url,
         method: 'POST',
         followAllRedirects: true,
         form: data,
         jar: cookie,
         headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.111 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.111 Safari/537.36',
+            'Upgrade-Insecure-Requests': 1
         }
     }, (error, response, body) => {
         const dom = new JSDOM(body);
