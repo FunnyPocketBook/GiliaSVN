@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/FunnyPocketBook/ilias-scraper#readme",
   "dependencies": {
+    "crypto": "^1.0.1",
     "fs": "0.0.1-security",
     "jsdom": "^15.1.1",
     "log4js": "^4.5.1",

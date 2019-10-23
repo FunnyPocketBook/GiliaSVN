@@ -5,6 +5,8 @@ const log4js = require('log4js');
 const parseString = require('xml2js').parseString;
 const { JSDOM } = jsdom;
 const svnSpawn = require('svn-spawn');
+const crypto = require('crypto');
+const algorithm = 'aes-256-cbc';
 const { document } = (new JSDOM('')).window;
 global.document = document;
 log4js.configure({
@@ -37,6 +39,37 @@ try {
     logger.error("Please make sure that the link to the RSS feed is in one line and does not contain any line breaks.");
     log4js.shutdown(() => {
         process.exit();
+    });
+}
+
+let key = [];
+let iv;
+
+try {
+    fs.readFileSync("./key", "utf8", function (err, contents) {
+        console.log(contents);
+    });
+} catch (e) {
+    let sin = process.stdin;
+    sin.setEncoding('utf-8');
+    logger.info("Please enter your Ilias password");
+    sin.on('data', function (data) {
+        // User input exit.
+        if (data === 'exit\n') {
+            // Program exit.
+            console.log("User input complete, program exit.");
+            process.exit();
+        } else {
+            // Print user input in console.
+            console.log('User Input Data : ' + data);
+        }
+    });
+    key = crypto.randomBytes(32);
+    iv = crypto.randomBytes(16);
+    fs.writeFileSync("./key", key.toString() + "\r\n" + iv.toString(), "utf8", function (err) {
+        if (err) {
+            return logger.error(err);
+        }
     });
 }
 const pathToDir = config.userData.downloadDir.endsWith("/") ? config.userData.downloadDir : config.userData.downloadDir + "/";
