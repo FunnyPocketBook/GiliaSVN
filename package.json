@@ -20,7 +20,7 @@
     "crypto": "^1.0.1",
     "fs": "0.0.1-security",
     "jsdom": "^15.1.1",
-    "log4js": "^4.5.1",
+    "log4js": "^5.3.0",
     "request": "^2.88.0",
     "simple-git": "^1.126.0",
     "svn-spawn": "^0.1.6",
