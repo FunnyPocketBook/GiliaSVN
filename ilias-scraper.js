@@ -7,6 +7,7 @@ const { JSDOM } = jsdom;
 const svnSpawn = require('svn-spawn');
 const crypto = require('crypto');
 const algorithm = 'aes-256-cbc';
+const git = require('simple-git');
 const { document } = (new JSDOM('')).window;
 global.document = document;
 log4js.configure({
@@ -42,41 +43,11 @@ try {
     });
 }
 
-let key = [];
-let iv;
-
-try {
-    fs.readFileSync("./key", "utf8", function (err, contents) {
-        console.log(contents);
-    });
-} catch (e) {
-    let sin = process.stdin;
-    sin.setEncoding('utf-8');
-    logger.info("Please enter your Ilias password");
-    sin.on('data', function (data) {
-        // User input exit.
-        if (data === 'exit\n') {
-            // Program exit.
-            console.log("User input complete, program exit.");
-            process.exit();
-        } else {
-            // Print user input in console.
-            console.log('User Input Data : ' + data);
-        }
-    });
-    key = crypto.randomBytes(32);
-    iv = crypto.randomBytes(16);
-    fs.writeFileSync("./key", key.toString() + "\r\n" + iv.toString(), "utf8", function (err) {
-        if (err) {
-            return logger.error(err);
-        }
-    });
-}
 const pathToDir = config.userData.downloadDir.endsWith("/") ? config.userData.downloadDir : config.userData.downloadDir + "/";
 const fileFile = config.userData.savedFilesDir.endsWith("/") ? config.userData.savedFilesDir + "files.json" : config.userData.savedFilesDir + "/files.json";
 const ignoreFile = config.userData.ignoreDir.endsWith("/") ? config.userData.savedFilesDir + "ignore.txt" : config.userData.savedFilesDir + "/ignore.txt";
 const svnRepo = config.userData.svnRepo;
-//const url = "https://ilias.uni-konstanz.de/ilias/ilias.php?lang=de&client_id=ilias_uni&cmd=post&cmdClass=ilstartupgui&cmdNode=xp&baseClass=ilStartUpGUI&rtoken=";
+const gitRepo = config.userData.gitRepo;
 const data = {
     "username": config.userData.user,
     "password": config.userData.passwordIlias,
@@ -130,7 +101,6 @@ function getFileList() {
             }
         }
     });
-    //login();
     getLoginLink();
 }
 
@@ -192,6 +162,16 @@ function login(url) {
     });
     if (svnRepo.length > 0) {
         addSvnRepo();
+    }
+    if (gitRepo.length > 0) {
+        gitRepo.forEach((url) => {
+            let user = config.userData.user;
+            if (config.userData.userGitlab && config.userData.userGitlab !== "") {
+                user = config.userData.userGitlab;
+            }
+            url = url.replace("https://", `https://${user}:${config.userData.passwordIlias}@`);
+            gitClone(url);
+        })
     }
 }
 
@@ -289,22 +269,22 @@ function getInfos(xmlBody) {
  */
 function addSvnRepo() {
     svnRepo.forEach((url) => {
-        let folder = url.replace("https://svn.uni-konstanz.de/", "").replace(/\/$/, "").split("/").slice(1).join("/");
+        let repo = url.replace("https://svn.uni-konstanz.de/", "").replace(/\/$/, "").split("/").slice(1).join("/");
         // Only checkout repo if it isn't a working copy already
         let svn = new svnSpawn({
-            cwd: pathToDir + folder,
+            cwd: pathToDir + repo,
             username: config.userData.user,
             password: config.userData.passwordIlias,
             noAuthCache: true,
         });
-        if (!fs.existsSync(pathToDir + folder)) {
-            fs.mkdirSync(pathToDir + folder, { recursive: true });
+        if (!fs.existsSync(pathToDir + repo)) {
+            fs.mkdirSync(pathToDir + repo, { recursive: true });
         }
         // Check if path is working directory, if no checkout repo
-        svn.cmd(["info", pathToDir + folder], function (err, data) {
+        svn.cmd(["info", pathToDir + repo], function (err, data) {
             if (err) {
                 if (err.message.includes("is not a working copy") || err.message.includes("ist keine Arbeitskopie")) {
-                    svn.cmd(["checkout", url, pathToDir + folder], function (err, data) {
+                    svn.cmd(["checkout", url, pathToDir + repo], function (err, data) {
                         err ? logger.error("Checkout of " + url + " failed! \r\n" + err.message) : logger.info("Checkout of " + url + " complete.");
                     });
                 }
@@ -319,23 +299,70 @@ function addSvnRepo() {
  */
 function updateSvnRepo() {
     svnRepo.forEach((url) => {
-        let folder = url.replace("https://svn.uni-konstanz.de/", "").replace(/\/$/, "").split("/").slice(1).join("/");
+        let repo = url.replace("https://svn.uni-konstanz.de/", "").replace(/\/$/, "").split("/").slice(1).join("/");
         let svn = new svnSpawn({
-            cwd: pathToDir + folder,
+            cwd: pathToDir + repo,
             username: config.userData.user,
             password: config.userData.passwordIlias,
             noAuthCache: true,
         });
         // Check if path is working directory, if yes update repo
-        svn.cmd(["info", pathToDir + folder], function (err, data) {
+        svn.cmd(["info", pathToDir + repo], function (err, data) {
             if (!err) {
-                svn.cmd(["update", pathToDir + folder], function (err, data) {
+                svn.cmd(["update", pathToDir + repo], function (err, data) {
                     err ? logger.error("Update of " + url + " failed! \r\n" + err.message) : logger.info("Update of " + url + " complete.");
                 });
             } else {
                 logger.error(err.message);
             }
         });
+    });
+}
+
+//gitClone("https://github.com/FunnyPocketBook/tribalWarsScripts.git");
+function gitClone(url) {
+    let folder = url.slice(url.lastIndexOf("/") + 1, url.lastIndexOf("."));
+    if (fs.existsSync(pathToDir + folder)) {
+        git(pathToDir + folder).checkIsRepo((err, isRepo) => {
+            if (!isRepo) {
+                git(pathToDir).clone(url, pathToDir + folder, (err, res) => {
+                    if (err) {
+                        logger.error(err);
+                    } else {
+                        logger.info(`Cloned ${folder} successfully.`);
+                    }
+                    gitPull(folder);
+                });
+            } else {
+                gitPull(folder);
+            }
+        });
+    } else {
+        git(pathToDir).clone(url, pathToDir + folder, (err, res) => {
+            if (err) {
+                logger.error(err);
+            } else {
+                logger.info(`Cloned ${folder} successfully.`);
+            }
+            gitPull(folder);
+        });
+    }
+}
+
+function gitPull(repoName) {
+    git(pathToDir + repoName).pull(function (err, res) {
+        if (err) {
+            logger.error(err);
+        }
+        if (res.deleted.length > 0) {
+            logger.info(`${repoName}: Deleted ${res.deleted.length} files: ${res.deleted.join(", ")}`)
+        }
+        if (res.created.length > 0) {
+            logger.info(`${repoName}: Added ${res.deleted.length} files: ${res.created.join(", ")}`)
+        }
+        if (Object.keys(res.insertions).length > 0) {
+            logger.info(`${repoName}: Changed ${Object.keys(res.insertions).length} files: ${Object.keys(res.insertions).join(", ")}`)
+        }
     });
 }
 
@@ -394,6 +421,40 @@ function updateFileList() {
         });
     }
 }
+
+/*
+function cryptStuff() {
+    let key = [];
+    let iv;
+
+    try {
+        fs.readFileSync("./key", "utf8", function (err, contents) {
+            console.log(contents);
+        });
+    } catch (e) {
+        let sin = process.stdin;
+        sin.setEncoding('utf-8');
+        logger.info("Please enter your Ilias password");
+        sin.on('data', function (data) {
+            // User input exit.
+            if (data === 'exit\n') {
+                // Program exit.
+                console.log("User input complete, program exit.");
+                process.exit();
+            } else {
+                // Print user input in console.
+                console.log('User Input Data : ' + data);
+            }
+        });
+        key = crypto.randomBytes(32);
+        iv = crypto.randomBytes(16);
+        fs.writeFileSync("./key", key.toString() + "\r\n" + iv.toString(), "utf8", function (err) {
+            if (err) {
+                return logger.error(err);
+            }
+        });
+    }
+}*/
 
 process.on("SIGINT", () => {
     logger.info("Process manually aborted by user.");
