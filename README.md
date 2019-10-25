@@ -14,6 +14,7 @@
     privateRssFeed: "https://ying-kai.dang:-password-@ilias.uni-konstanz.de/ilias/privfeed.php?client_id=ilias_uni&user_id=userid&hash=hash",
     passwordRss: "hunter2Rss",
     svnRepo: ["https://svn.uni-konstanz.de/dbis/kdp/pub/", "https://svn.uni-konstanz.de/dbis/kdi/pub/"],
+    gitRepo: ["https://git.uni-konstanz.de/repo/"],
     downloadDir: "C:/Users/user/iliasFiles/",
     savedFilesDir: "C:/Users/user/iliasFiles/",
     ignoreDir: "C:/Users/user/iliasFiles/"
@@ -44,9 +45,9 @@ Make sure the URL does not have any line breaks and is all in one line.
 
 ![ILIAS RSS link](https://i.imgur.com/0rUIp7M.png)
 
-#### SVN repositories
+#### SVN and Git repositories
 
-Enter your SVN URLs into the `svnRepo` array. Each URL should be added as a new element. Leave the array empty `[]` if you don't want to include and SVN repos.
+Enter your SVN/Git URLs into the `svnRepo`/`gitRepo` array. Each URL should be added as a new element. Leave the array empty `[]` if you don't want to include SVN/Git repos.
 
 #### Credentials
 
@@ -66,6 +67,7 @@ exports.userData = {
     privateRssFeed: "https://ying-kai.dang:-password-@ilias.uni-konstanz.de/ilias/privfeed.php?client_id=ilias_uni&user_id=userid&hash=hash",
     passwordRss: "hunter2Rss",
     svnRepo: ["https://svn.uni-konstanz.de/dbis/kdp/pub/", "https://svn.uni-konstanz.de/dbis/kdi/pub/"],
+    gitRepo: ["https://git.uni-konstanz.de/repo/"],
     downloadDir: "C:/Users/user/iliasFiles/",
     savedFilesDir: "C:/Users/user/iliasFiles/",
     ignoreDir: "C:/Users/user/iliasFiles/"
