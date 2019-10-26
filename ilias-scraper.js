@@ -8,8 +8,10 @@ const svnSpawn = require('svn-spawn');
 const crypto = require('crypto');
 const algorithm = 'aes-256-cbc';
 const git = require('simple-git');
+const read = require("read");
 const { document } = (new JSDOM('')).window;
 global.document = document;
+const logger = log4js.getLogger('ilias');
 log4js.configure({
     appenders: {
         ilias: {
@@ -29,14 +31,13 @@ log4js.configure({
         }
     }
 });
-const logger = log4js.getLogger('ilias');
-logger.info("-----");
 
 let cookie = request.jar();
 let config;
 try {
     config = require('./config.js');
 } catch (e) {
+    logger.info("-----");
     logger.error("Please make sure that the link to the RSS feed is in one line and does not contain any line breaks.");
     log4js.shutdown(() => {
         process.exit();
@@ -48,12 +49,11 @@ const fileFile = config.userData.savedFilesDir.endsWith("/") ? config.userData.s
 const ignoreFile = config.userData.ignoreDir.endsWith("/") ? config.userData.savedFilesDir + "ignore.txt" : config.userData.savedFilesDir + "/ignore.txt";
 const svnRepo = config.userData.svnRepo;
 const gitRepo = config.userData.gitRepo;
-const data = {
+const loginData = {
     "username": config.userData.user,
-    "password": config.userData.passwordIlias,
     "cmd[doStandardAuthentication]": "Anmelden"
 }
-const rss = config.userData.privateRssFeed.replace("-password-", config.userData.passwordRss);
+let rss;
 
 let fileList = {}; // Stores file infos
 let ignoreList = []; // Stores files to ignore
@@ -61,20 +61,45 @@ let downloadedCounter = 0;
 let toDownloadCounter = 0;
 let error = false;
 
-logger.info("Download path: " + pathToDir);
-logger.info("File list path: " + fileFile);
-logger.info("Ignore file path: " + ignoreFile);
 // Check if the pathToDir exists and if not, create it
 if (!fs.existsSync(pathToDir)) {
     fs.mkdirSync(pathToDir);
 }
 
-getFileList();
+main();
+
+/**
+ * Start program and prompt for password if not stored already
+ */
+function main() {
+    logger.info("-----");
+    if (!fs.existsSync("ilias_key") || !fs.existsSync("ilias_key_r" || !fs.existsSync("rss_key") || !fs.existsSync("rss_key_r"))) {
+        read({ prompt: 'Ilias password: ', silent: true }, function (err, password) {
+            loginData.password = password;
+            encrypt(password, "ilias_key");
+            read({ prompt: 'RSS password: ', silent: true }, function (err, password) {
+                rss = config.userData.privateRssFeed.replace("-password-", password);
+                encrypt(password, "rss_key");
+                getFileList();
+            })
+        })
+    } else {
+        getFileList();
+    }
+    //
+}
 
 /**
  * Read existing data from files.json
  */
 function getFileList() {
+    if (!loginData.password) {
+        loginData.password = decrypt("ilias_key");
+        rss = config.userData.privateRssFeed.replace("-password-", decrypt("rss_key"));
+    }
+    logger.info("Download path: " + pathToDir);
+    logger.info("File list path: " + fileFile);
+    logger.info("Ignore file path: " + ignoreFile);
     if (!fs.existsSync(fileFile)) {
         fs.closeSync(fs.openSync(fileFile, 'w'))
     }
@@ -127,7 +152,7 @@ function login(url) {
         url: "https://ilias.uni-konstanz.de/ilias/" + url,
         method: 'POST',
         followAllRedirects: true,
-        form: data,
+        form: loginData,
         jar: cookie,
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.111 Safari/537.36',
@@ -263,7 +288,6 @@ function getInfos(xmlBody) {
     }
 }
 
-
 /**
  * Checkout SVN repositories
  */
@@ -319,7 +343,6 @@ function updateSvnRepo() {
     });
 }
 
-//gitClone("https://github.com/FunnyPocketBook/tribalWarsScripts.git");
 function gitClone(url) {
     let folder = url.slice(url.lastIndexOf("/") + 1, url.lastIndexOf("."));
     if (fs.existsSync(pathToDir + folder)) {
@@ -422,39 +445,38 @@ function updateFileList() {
     }
 }
 
-/*
-function cryptStuff() {
-    let key = [];
-    let iv;
+/*var hw = encrypt("Some serious stuff", "test1");
+console.log(hw);
+setTimeout(function() {
+    console.log(decrypt("test1"))
+}, 10);*/
 
-    try {
-        fs.readFileSync("./key", "utf8", function (err, contents) {
-            console.log(contents);
-        });
-    } catch (e) {
-        let sin = process.stdin;
-        sin.setEncoding('utf-8');
-        logger.info("Please enter your Ilias password");
-        sin.on('data', function (data) {
-            // User input exit.
-            if (data === 'exit\n') {
-                // Program exit.
-                console.log("User input complete, program exit.");
-                process.exit();
-            } else {
-                // Print user input in console.
-                console.log('User Input Data : ' + data);
-            }
-        });
-        key = crypto.randomBytes(32);
-        iv = crypto.randomBytes(16);
-        fs.writeFileSync("./key", key.toString() + "\r\n" + iv.toString(), "utf8", function (err) {
-            if (err) {
-                return logger.error(err);
-            }
-        });
-    }
-}*/
+function encrypt(text, filename) {
+    let key = crypto.randomBytes(32);
+    let iv = crypto.randomBytes(16);
+    let wstream = fs.createWriteStream(filename);
+    wstream.write(key);
+    wstream.end();
+    let cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(key), iv);
+    let encrypted = cipher.update(text);
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    let result = { iv: iv.toString('hex'), encryptedData: encrypted.toString('hex') };
+    let wkeystream = fs.createWriteStream(filename + "_r");
+    wkeystream.write(JSON.stringify(result));
+    wstream.end();
+    return result;
+}
+
+function decrypt(filename) {
+    let key = fs.readFileSync(filename);
+    let text = JSON.parse(fs.readFileSync(filename + "_r", "utf-8"));
+    let iv = Buffer.from(text.iv, 'hex');
+    let encryptedText = Buffer.from(text.encryptedData, 'hex');
+    let decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(key), iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+}
 
 process.on("SIGINT", () => {
     logger.info("Process manually aborted by user.");

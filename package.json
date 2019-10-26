@@ -21,6 +21,7 @@
     "fs": "0.0.1-security",
     "jsdom": "^15.1.1",
     "log4js": "^4.5.1",
+    "read": "^1.0.7",
     "request": "^2.88.0",
     "simple-git": "^1.126.0",
     "svn-spawn": "^0.1.6",
