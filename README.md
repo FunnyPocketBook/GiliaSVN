@@ -10,9 +10,7 @@
     ```javascript
     exports.userData {
     user: "ying-kai.dang",
-    passwordIlias: "hunter2",
     privateRssFeed: "https://ying-kai.dang:-password-@ilias.uni-konstanz.de/ilias/privfeed.php?client_id=ilias_uni&user_id=userid&hash=hash",
-    passwordRss: "hunter2Rss",
     svnRepo: ["https://svn.uni-konstanz.de/dbis/kdp/pub/", "https://svn.uni-konstanz.de/dbis/kdi/pub/"],
     gitRepo: ["https://git.uni-konstanz.de/repo/"],
     downloadDir: "C:/Users/user/iliasFiles/",
@@ -22,7 +20,7 @@
     ```
 6. Rename config-template.js to config.js
 7. (optional) Create a file `ignore.txt` and add one filename per line to not download that file.
-8. Run `node ilias-scraper.js` in the terminal
+8. Run `node ilias-scraper.js` in the terminal and enter your Ilias and RSS password.
 
 ### Requirements
 This script uses Node.js. If you don't have it, head to [Node.js](https://nodejs.org/en/) and download the latest LTS version for your OS. Then install it and follow the install instructions.
@@ -51,7 +49,7 @@ Enter your SVN/Git URLs into the `svnRepo`/`gitRepo` array. Each URL should be a
 
 #### Credentials
 
-Enter your ILIAS username and password in the placeholders. The username is usually `firstname.lastname`. In `passwordRss`, enter the password you set for the RSS feed. You can change it by clicking the cogwheel on the top right of the RSS feed on your ILIAS dashboard.
+You will be prompted for your password on start of GiliaSVN. Those will be encrypted, so your password won't be stored in plaintext. If you changed your password, simply delete the `data` folder in the root directory to enter your password anew.
 
 #### Download directory
 
@@ -63,9 +61,7 @@ Example config:
 ```javascript
 exports.userData = {
     user: "ying-kai.dang",
-    passwordIlias: "hunter2",
     privateRssFeed: "https://ying-kai.dang:-password-@ilias.uni-konstanz.de/ilias/privfeed.php?client_id=ilias_uni&user_id=userid&hash=hash",
-    passwordRss: "hunter2Rss",
     svnRepo: ["https://svn.uni-konstanz.de/dbis/kdp/pub/", "https://svn.uni-konstanz.de/dbis/kdi/pub/"],
     gitRepo: ["https://git.uni-konstanz.de/repo/"],
     downloadDir: "C:/Users/user/iliasFiles/",
