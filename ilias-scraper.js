@@ -46,7 +46,7 @@ try {
 
 const pathToDir = config.userData.downloadDir.endsWith("/") ? config.userData.downloadDir : config.userData.downloadDir + "/";
 const fileFile = config.userData.savedFilesDir.endsWith("/") ? config.userData.savedFilesDir + "files.json" : config.userData.savedFilesDir + "/files.json";
-const ignoreFile = config.userData.ignoreDir.endsWith("/") ? config.userData.savedFilesDir + "ignore.txt" : config.userData.savedFilesDir + "/ignore.txt";
+const ignoreFile = config.userData.ignoreDir.endsWith("/") ? config.userData.ignoreDir + "ignore.txt" : config.userData.ignoreDir + "/ignore.txt";
 const svnRepo = config.userData.svnRepo;
 const gitRepo = config.userData.gitRepo;
 const loginData = {
@@ -113,6 +113,7 @@ function getFileList() {
     });
 
     if (!fs.existsSync(ignoreFile)) {
+        fs.mkdirSync(ignoreFile.replace("ignore.txt", ""), { recursive: true });
         fs.closeSync(fs.openSync(ignoreFile, 'w'))
     }
     fs.readFile(ignoreFile, function (err, data) {
@@ -185,10 +186,10 @@ function login(url) {
         logger.info("Login successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
         rssFeed(rss);
     });
-    if (svnRepo.length > 0) {
+    if (svnRepo && svnRepo.length > 0) {
         addSvnRepo();
     }
-    if (gitRepo.length > 0) {
+    if (gitRepo && gitRepo.length > 0) {
         gitRepo.forEach((url) => {
             let user = config.userData.user;
             if (config.userData.userGitlab && config.userData.userGitlab !== "") {
