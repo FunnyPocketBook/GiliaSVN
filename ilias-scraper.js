@@ -73,7 +73,7 @@ main();
  */
 function main() {
     logger.info("-----");
-    if (!fs.existsSync("ilias_key") || !fs.existsSync("ilias_key_r" || !fs.existsSync("rss_key") || !fs.existsSync("rss_key_r"))) {
+    if (!fs.existsSync("./data/ilias_key") || !fs.existsSync("./data/ilias_key_r" || !fs.existsSync("./data/rss_key") || !fs.existsSync("./data/rss_key_r"))) {
         read({ prompt: 'Ilias password: ', silent: true }, function (err, password) {
             loginData.password = password;
             encrypt(password, "ilias_key");
@@ -194,7 +194,7 @@ function login(url) {
             if (config.userData.userGitlab && config.userData.userGitlab !== "") {
                 user = config.userData.userGitlab;
             }
-            url = url.replace("https://", `https://${user}:${config.userData.passwordIlias}@`);
+            url = url.replace("https://", `https://${user}:${loginData.password}@`);
             gitClone(url);
         })
     }
@@ -231,10 +231,10 @@ function getInfos(xmlBody) {
     let xml;
     let changed = false;
     if (xmlBody.statusCode !== 200) {
-        logger.error(xmlBody.statusCode + ": " + xmlBody.statusMessage);
+        logger.error("RSS feed: " + xmlBody.statusCode + ": " + xmlBody.statusMessage);
         switch (xmlBody.statusCode) {
             case 401:
-                logger.error("Please check your login data.");
+                logger.error("RSS feed: Please check your login data. Delete the data folder in the root directory to enter your password again.");
                 break;
         }
         return;
@@ -343,6 +343,10 @@ function updateSvnRepo() {
     });
 }
 
+/**
+ * Clone a git repo from https://git.uni-konstanz.de/
+ * @param {string} url URL to git repo
+ */
 function gitClone(url) {
     let folder = url.slice(url.lastIndexOf("/") + 1, url.lastIndexOf("."));
     if (fs.existsSync(pathToDir + folder)) {
@@ -372,6 +376,10 @@ function gitClone(url) {
     }
 }
 
+/**
+ * Pull from git repo
+ * @param {string} repoName name of git repo
+ */
 function gitPull(repoName) {
     git(pathToDir + repoName).pull(function (err, res) {
         if (err) {
@@ -445,31 +453,37 @@ function updateFileList() {
     }
 }
 
-/*var hw = encrypt("Some serious stuff", "test1");
-console.log(hw);
-setTimeout(function() {
-    console.log(decrypt("test1"))
-}, 10);*/
-
+/**
+ * Encrpypts a string and stores it in a file under ./data/
+ * @param {string} text String to encrypt
+ * @param {string} filename Name of file where the encrypted string is stored
+ */
 function encrypt(text, filename) {
+    if (!fs.existsSync("./data/")) {
+        fs.mkdirSync("./data/");
+    }
     let key = crypto.randomBytes(32);
     let iv = crypto.randomBytes(16);
-    let wstream = fs.createWriteStream(filename);
+    let wstream = fs.createWriteStream("./data/" + filename);
     wstream.write(key);
     wstream.end();
     let cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(key), iv);
     let encrypted = cipher.update(text);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
     let result = { iv: iv.toString('hex'), encryptedData: encrypted.toString('hex') };
-    let wkeystream = fs.createWriteStream(filename + "_r");
+    let wkeystream = fs.createWriteStream("./data/" + filename + "_r");
     wkeystream.write(JSON.stringify(result));
     wstream.end();
     return result;
 }
 
+/**
+ * Decrypts string from file
+ * @param {string} filename Name of file of encrypted string
+ */
 function decrypt(filename) {
-    let key = fs.readFileSync(filename);
-    let text = JSON.parse(fs.readFileSync(filename + "_r", "utf-8"));
+    let key = fs.readFileSync("./data/" + filename);
+    let text = JSON.parse(fs.readFileSync("./data/" + filename + "_r", "utf-8"));
     let iv = Buffer.from(text.iv, 'hex');
     let encryptedText = Buffer.from(text.encryptedData, 'hex');
     let decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(key), iv);
