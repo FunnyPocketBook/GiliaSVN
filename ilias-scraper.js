@@ -298,7 +298,7 @@ function addSvnRepo() {
         let svn = new svnSpawn({
             cwd: pathToDir + repo,
             username: config.userData.user,
-            password: config.userData.passwordIlias,
+            password: loginData.password,
             noAuthCache: true,
         });
         if (!fs.existsSync(pathToDir + repo)) {
@@ -327,7 +327,7 @@ function updateSvnRepo() {
         let svn = new svnSpawn({
             cwd: pathToDir + repo,
             username: config.userData.user,
-            password: config.userData.passwordIlias,
+            password: loginData.password,
             noAuthCache: true,
         });
         // Check if path is working directory, if yes update repo
