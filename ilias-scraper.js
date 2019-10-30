@@ -57,6 +57,7 @@ let rss;
 
 let fileList = {}; // Stores file infos
 let ignoreList = []; // Stores files to ignore
+let ignoreCourse = []; // Stores courses to ignore
 let downloadedCounter = 0;
 let toDownloadCounter = 0;
 let error = false;
@@ -90,7 +91,7 @@ function main() {
 }
 
 /**
- * Read existing data from files.json
+ * Read existing data from files.json and ignore.txt
  */
 function getFileList() {
     if (!loginData.password) {
@@ -103,7 +104,7 @@ function getFileList() {
     if (!fs.existsSync(fileFile)) {
         fs.closeSync(fs.openSync(fileFile, 'w'))
     }
-    fs.readFile(fileFile, function (err, data) {
+    fs.readFileSync(fileFile, function (err, data) {
         if (err) {
             logger.error(err);
         }
@@ -116,6 +117,7 @@ function getFileList() {
         fs.mkdirSync(ignoreFile.replace("ignore.txt", ""), { recursive: true });
         fs.closeSync(fs.openSync(ignoreFile, 'w'))
     }
+    // Read ignore.txt and store files and courses to ignore
     fs.readFile(ignoreFile, function (err, data) {
         if (err) {
             logger.error(err);
@@ -123,13 +125,20 @@ function getFileList() {
         if (data.length > 0) {
             let array = data.toString().replace(/\r\n/g, '\n').split('\n');
             for (i in array) {
-                ignoreList.push(array[i]);
+                if (!array[i].startsWith('Course:')) {
+                    ignoreList.push(array[i].trim());
+                } else {
+                    ignoreCourse.push(array[i].replace('Course:', '').trim());
+                }
             }
         }
     });
     getLoginLink();
 }
 
+/**
+ * Get login link dynamically as it changes every version update
+ */
 function getLoginLink() {
     request({
         url: "https://ilias.uni-konstanz.de/ilias/login.php",
@@ -252,6 +261,9 @@ function getInfos(xmlBody) {
             let fileNumber = xml.rss.channel[0].item[i].link[0].match(/file_(\d*)/)[1];
             let fileDate = xml.rss.channel[0].item[i].pubDate[0];
             let temp = fileList;
+            if (ignoreCourse.includes(subfolders[0])) {
+                continue;
+            }
 
             // Build up the object one key by one
             for (let j = 0; j < subfolders.length; j++) {

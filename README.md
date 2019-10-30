@@ -55,9 +55,15 @@ You will be prompted for your password on start of GiliaSVN. Those will be encry
 
 Create a folder somewhere where the files should be downloaded to. Then copy the  path to that location (e.g. `C:/Users/user/iliasFiles`) and replace `path to download directory` with the path you copied. <b>Please replace any backslashes `\` with forward slashes `/`</b>. The path should only have backslashes if you are using a Windows system.
 
-You also need to provide the path where the `files.json` and `ignore.txt` files are located. `files.json` saves all files that are already downloaded and in `ignore.txt` you can put in the files that you don't want to download. Setting the paths for these files can be useful if you are sharing the files with other people with e.g. Google Drive.
+You also need to provide the path where the `files.json` and `ignore.txt` files are located. `files.json` saves all files that are already downloaded and in `ignore.txt` you can put in the files and courses that you don't want to download. Setting the paths for these files can be useful if you are sharing the files with other people with e.g. Google Drive.
 
-Example config:
+Example `ignore.txt`, ignoring the course "Datenmathematik" and the file `02. Vorlesung: 24.10.19.pdf`:
+```plaintext
+Course: Datenmathematik (WS 2019/20)
+02. Vorlesung: 24.10.19.pdf
+``` 
+
+##### Example config:
 ```javascript
 exports.userData = {
     user: "ying-kai.dang",
