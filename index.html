@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Menus</title>
+</head>
+
+<body>
+    <script type="text/javascript">
+        const { remote } = require('electron');
+        const { Tray, Menu } = remote;
+        const giliasvn = require('./ilias-scraper.js');
+        setTimeout(function() {
+            document.getElementById('testbutton').addEventListener('click', giliasvn.main());
+        }, 100);
+    </script>
+</body>
+<h1>Test</h1>
+<div>
+    <button id='testbutton'>Click me</button>
+</div>
+</html>
