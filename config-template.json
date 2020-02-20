@@ -1,0 +1,11 @@
+{
+    "user": "username",
+    "userGitlab": "username",
+    "privateRssFeed": "privateRssFeedURL",
+    "svnRepo": ["https://svn.uni-konstanz.de/repo/"],
+    "gitRepo": ["https://git.uni-konstanz.de/repo/"],
+    "downloadDir": "path to download directory",
+    "savedFilesDir": "path to directory of files.json where already downloaded files are being tracked",
+    "ignoreDir": "path to directory of ignore.txt where to be ignored files are stored",
+    "discordBot": false
+}

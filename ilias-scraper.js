@@ -8,6 +8,7 @@ const svnSpawn = require("svn-spawn");
 const crypto = require("crypto");
 const git = require("simple-git");
 const read = require("read");
+const giliaSvnBot = require("./discordBot");
 const { document } = (new JSDOM("")).window;
 global.document = document;
 const logger = log4js.getLogger("ilias");
@@ -34,7 +35,7 @@ log4js.configure({
 let cookie = request.jar();
 let config;
 try {
-    config = require("./config.js");
+    config = require("./config.json");
 } catch (e) {
     logger.info("-----");
     logger.error("Please make sure that the link to the RSS feed is in one line and does not contain any line breaks.");
@@ -43,13 +44,17 @@ try {
     });
 }
 
-const pathToDir = config.userData.downloadDir.endsWith("/") ? config.userData.downloadDir : config.userData.downloadDir + "/";
-const fileFile = config.userData.savedFilesDir.endsWith("/") ? config.userData.savedFilesDir + "files.json" : config.userData.savedFilesDir + "/files.json";
-const ignoreFile = config.userData.ignoreDir.endsWith("/") ? config.userData.ignoreDir + "ignore.txt" : config.userData.ignoreDir + "/ignore.txt";
-const svnRepo = config.userData.svnRepo;
-const gitRepo = config.userData.gitRepo;
+if (config.discordBot) {
+    giliaSvnBot.createBot();
+}
+
+const pathToDir = config.downloadDir.endsWith("/") ? config.downloadDir : config.downloadDir + "/";
+const fileFile = config.savedFilesDir.endsWith("/") ? config.savedFilesDir + "files.json" : config.savedFilesDir + "/files.json";
+const ignoreFile = config.ignoreDir.endsWith("/") ? config.ignoreDir + "ignore.txt" : config.ignoreDir + "/ignore.txt";
+const svnRepo = config.svnRepo;
+const gitRepo = config.gitRepo;
 const loginData = {
-    "username": config.userData.user,
+    "username": config.user,
     "cmd[doStandardAuthentication]": "Anmelden"
 };
 let rss;
@@ -57,9 +62,8 @@ let rss;
 let fileList = {}; // Stores file infos
 let ignoreList = []; // Stores files to ignore
 let ignoreCourse = []; // Stores courses to ignore
-let downloadedCounter = 0;
-let toDownloadCounter = 0;
-let error = false;
+let errorDlFile = false; //
+let downloading = 0;
 
 // Check if the pathToDir exists and if not, create it
 if (!fs.existsSync(pathToDir)) {
@@ -78,7 +82,7 @@ function main() {
             loginData.password = password;
             encrypt(password, "ilias_key");
             read({ prompt: "RSS password: ", silent: true }, function (err, password) {
-                rss = config.userData.privateRssFeed.replace("-password-", password);
+                rss = config.privateRssFeed.replace("-password-", password);
                 encrypt(password, "rss_key");
                 getFileList();
             });
@@ -86,7 +90,6 @@ function main() {
     } else {
         getFileList();
     }
-    //
 }
 
 /**
@@ -95,7 +98,7 @@ function main() {
 function getFileList() {
     if (!loginData.password) {
         loginData.password = decrypt("ilias_key");
-        rss = config.userData.privateRssFeed.replace("-password-", decrypt("rss_key"));
+        rss = config.privateRssFeed.replace("-password-", decrypt("rss_key"));
     }
     logger.info("Download path: " + pathToDir);
     logger.info("File list path: " + fileFile);
@@ -141,14 +144,19 @@ function getLoginLink() {
         headers: {
             "User-Agent": "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.111 Safari/537.36"
         }
-    }, (error, response, body) => {
-        const dom = new JSDOM(body);
+    }, (error, response) => {
+        if (error) {
+            logger.error(error);
+            return;
+        }
+        const dom = new JSDOM(response.body);
         login(dom.window.document.querySelector("#form_").getAttribute("action"));
     });
 }
 
 /**
- * Login to ilias
+ * Log into ilias
+ * @param {string} url Login URL for ilias
  */
 function login(url) {
     let t0 = (new Date).getTime();
@@ -194,9 +202,9 @@ function login(url) {
     }
     if (gitRepo && gitRepo.length > 0) {
         gitRepo.forEach((url) => {
-            let user = config.userData.user;
-            if (config.userData.userGitlab && config.userData.userGitlab !== "") {
-                user = config.userData.userGitlab;
+            let user = config.user;
+            if (config.userGitlab && config.userGitlab !== "") {
+                user = config.userGitlab;
             }
             url = url.replace("https://", `https://${user}:${loginData.password}@`);
             gitClone(url);
@@ -204,8 +212,10 @@ function login(url) {
     }
 }
 
+
 /**
  * Get RSS feed
+ * @param {string} rss URL to private RSS feed
  */
 function rssFeed(rss) {
     let t0 = (new Date).getTime();
@@ -224,14 +234,15 @@ function rssFeed(rss) {
             return;
         }
         logger.info("RSS successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
-        getInfos(body);
+        rssDownload(body);
     });
 }
 
 /**
- * Parse RSS feed and update files.json
+ * Downloads files from the RSS feed
+ * @param {string} xmlBody XML as string from the RSS feed
  */
-function getInfos(xmlBody) {
+function rssDownload(xmlBody) {
     let xml;
     let changed = false;
     let downloadFilesList = [];
@@ -250,10 +261,10 @@ function getInfos(xmlBody) {
     for (let i = 0; i < xml.rss.channel[0].item.length; i++) {
         // For each link that contains "target=file" (meaning there is a file to download), get the infos of that entry
         if (xml.rss.channel[0].item[i].link[0].includes("target=file")) {
-            let course = xml.rss.channel[0].item[i].title[0].match(/\[(.*?)\]/)[1];
+            let subfolders = xml.rss.channel[0].item[i].title[0].match(/\[(.*?)\]/)[1].split(" > ");
             let fileToDownload = {
-                course: course,
-                subfolders: course.split(" > "),
+                course: subfolders[0],
+                subfolders: subfolders,
                 fileName: xml.rss.channel[0].item[i].title[0].match(/]\s(.*): Die Datei/)[1], // TODO: Match the name without "Die Datei"
                 fileNumber: xml.rss.channel[0].item[i].link[0].match(/file_(\d*)/)[1],
                 fileDate: xml.rss.channel[0].item[i].pubDate[0]
@@ -292,35 +303,35 @@ function getInfos(xmlBody) {
         }
     }
     downloadFilesList.forEach(f => {
-        toDownloadCounter++;
-        downloadFile(f);
+        downloadFile(f, downloadFilesList.length);
     });
     // If nothing in the file information object has changed, don't rewrite the file
     if (!changed) {
         logger.info("No new files from RSS feed.");
+        giliaSvnBot.destroyBot();
     }
 }
 
 /**
- * Checkout SVN repositories
+ * Checkout or update SVN repositories
  */
 function updateSvn() {
     svnRepo.forEach((url) => {
         let repo = url.replace("https://svn.uni-konstanz.de/", "").replace(/\/$/, "").split("/").slice(1).join("/");
         let svn = new svnSpawn({
             cwd: pathToDir + repo,
-            username: config.userData.user,
+            username: config.user,
             password: loginData.password,
             noAuthCache: true,
         });
         if (!fs.existsSync(pathToDir + repo)) {
             fs.mkdirSync(pathToDir + repo, { recursive: true });
         }
-        // Check if path is working directory, if no checkout repo
-        svn.getInfo(function(err) {
+        // Check if path is working copy, if not, checkout repo
+        svn.getInfo(function (err) {
             if (err) { // Not a working copy
-                svn.cmd(["checkout", url, "./"], function (error, data) { // Path is the path of the previous svn.cmd path
-                    if (error){
+                svn.cmd(["checkout", url, "./"], function (error, data) {
+                    if (error) {
                         logger.error("Checkout of " + repo + " failed! \r\n" + error.message);
                     }
                     if (data) {
@@ -334,8 +345,8 @@ function updateSvn() {
                     }
                 });
             } else {
-                svn.update(function (error, data) { // Path is the path of the previous svn.cmd path
-                    if (error){
+                svn.update(function (error, data) {
+                    if (error) {
                         logger.error("Update of " + repo + " failed! \r\n" + error.message);
                     }
                     if (data) {
@@ -409,12 +420,13 @@ function gitPull(repoName) {
 }
 
 /**
- * Download the requested file
- * @param {{}} downloadFile file object to download
+ * Download the requested ilias file
+ * @param {{}} downloadFile object of file to download
  */
-function downloadFile(downloadFile) {
-    logger.info(toDownloadCounter + " Downloading " + downloadFile.fileName + " ...");
+function downloadFile(downloadFile, dlAmnt) {
+    logger.info(`Downloading (${++downloading}/${dlAmnt}): ${downloadFile.fileName}...`);
     let path = pathToDir;
+    let downloadedCounter = 0;
     // Build the folder structure one by one in order to mkdir for each new dir
     for (let i = 0; i < downloadFile.subfolders.length; i++) {
         path += downloadFile.subfolders[i].replace(/[/\\?%*:|"<>]/g, "-");
@@ -437,14 +449,18 @@ function downloadFile(downloadFile) {
         }
     }).pipe(file).on("finish", () => {
         downloadedCounter++;
-        logger.info("(" + downloadedCounter + "/" + toDownloadCounter + ") Finished downloading: " + downloadFile.fileName);
-        if (downloadedCounter == toDownloadCounter) {
+        logger.info(`Downloaded (${downloadedCounter}/${dlAmnt}): ${downloadFile.fileName}`);
+        if (downloadedCounter == dlAmnt) {
             updateFileList();
             logger.info("All files finished downloading.");
         }
+        if (config.discordBot) {
+            const buffer = fs.readFileSync(path + "/" + downloadFile.fileName.replace(/[/\\?%*:|"<>]/g, "-"));
+            giliaSvnBot.sendFile(buffer, downloadFile, dlAmnt, logger);
+        }
     }).on("error", (error) => {
         logger.error(error);
-        error = true;
+        errorDlFile = true;
     });
 }
 
@@ -452,7 +468,7 @@ function downloadFile(downloadFile) {
  * Update files.json
  */
 function updateFileList() {
-    if (!error) {
+    if (!errorDlFile) {
         fs.writeFile(fileFile, JSON.stringify(fileList, null, 4), (err) => {
             if (err) {
                 logger.error("An error occurred, file list has not been updated.");

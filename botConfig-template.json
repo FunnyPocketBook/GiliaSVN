@@ -1,0 +1,6 @@
+{
+    "token": "botToken",
+    "channels": {
+        "Name of course in ilias": "channelID"
+    }
+}
