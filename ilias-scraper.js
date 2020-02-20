@@ -126,6 +126,7 @@ function getFileList() {
         }
     } catch (err) {
         logger.error(err);
+        return;
     }
     getLoginLink();
 }
@@ -184,7 +185,6 @@ function login(url) {
                 logger.error(e.textContent.trim());
             });
             process.exit();
-            return;
         }
         logger.info("Login successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
         rssFeed(rss);
