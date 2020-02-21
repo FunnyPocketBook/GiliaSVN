@@ -64,6 +64,7 @@ let ignoreList = []; // Stores files to ignore
 let ignoreCourse = []; // Stores courses to ignore
 let errorDlFile = false; //
 let downloading = 0;
+let downloaded = 0;
 
 // Check if the pathToDir exists and if not, create it
 if (!fs.existsSync(pathToDir)) {
@@ -308,7 +309,9 @@ function rssDownload(xmlBody) {
     // If nothing in the file information object has changed, don't rewrite the file
     if (!changed) {
         logger.info("No new files from RSS feed.");
-        giliaSvnBot.destroyBot();
+        if (config.discordBot) {
+            giliaSvnBot.destroyBot();
+        }
     }
 }
 
@@ -426,7 +429,6 @@ function gitPull(repoName) {
 function downloadFile(downloadFile, dlAmnt) {
     logger.info(`Downloading (${++downloading}/${dlAmnt}): ${downloadFile.fileName}...`);
     let path = pathToDir;
-    let downloadedCounter = 0;
     // Build the folder structure one by one in order to mkdir for each new dir
     for (let i = 0; i < downloadFile.subfolders.length; i++) {
         path += downloadFile.subfolders[i].replace(/[/\\?%*:|"<>]/g, "-");
@@ -448,9 +450,8 @@ function downloadFile(downloadFile, dlAmnt) {
             "User-Agent": "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.111 Safari/537.36"
         }
     }).pipe(file).on("finish", () => {
-        downloadedCounter++;
-        logger.info(`Downloaded (${downloadedCounter}/${dlAmnt}): ${downloadFile.fileName}`);
-        if (downloadedCounter == dlAmnt) {
+        logger.info(`Downloaded (${++downloaded}/${dlAmnt}): ${downloadFile.fileName}`);
+        if (downloaded == dlAmnt) {
             updateFileList();
             logger.info("All files finished downloading.");
         }
