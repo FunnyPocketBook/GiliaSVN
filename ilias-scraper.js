@@ -65,6 +65,7 @@ let ignoreCourse = []; // Stores courses to ignore
 let errorDlFile = false; //
 let downloading = 0;
 let downloaded = 0;
+let promiseSent = [];
 
 // Check if the pathToDir exists and if not, create it
 if (!fs.existsSync(pathToDir)) {
@@ -174,32 +175,28 @@ function login(url) {
         }
     }, (error, response, body) => {
         const dom = new JSDOM(body);
-        cookie._jar.store.getAllCookies(function (err, cookieArray) {
-            if (err) throw new Error("Failed to get cookies");
-            logger.debug(JSON.stringify(cookieArray, null, 4));
-        });
         if (response.statusCode != 200) {
-            logger.error("Status code " + response.statusCode);
+            logger.error("[Ilias] Status code " + response.statusCode);
             return;
         }
         if (error) {
-            logger.error(error);
+            logger.error(`[Ilias] ${error}`);
             return;
         }
         if (dom.window.document.querySelectorAll(".alert-danger").length != 0) {
             if (response.statusCode != 200) {
-                logger.info("Status code: " + response.statusCode);
+                logger.error("[Ilias] Status code: " + response.statusCode);
             }
             dom.window.document.querySelectorAll(".alert-danger").forEach(function (e) {
-                logger.error(e.textContent.trim());
+                logger.error(`[Ilias] ${e.textContent.trim()}`);
             });
             process.exit();
         }
-        logger.info("Login successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
+        logger.info(`[Ilias] Login successful, it took ${((new Date).getTime() - t0) / 1000} seconds.`);
         rssFeed(rss);
     });
     if (svnRepo && svnRepo.length > 0) {
-        updateSvn();
+        svnRepo.forEach(updateSvn);
     }
     if (gitRepo && gitRepo.length > 0) {
         gitRepo.forEach((url) => {
@@ -220,7 +217,7 @@ function login(url) {
  */
 function rssFeed(rss) {
     let t0 = (new Date).getTime();
-    logger.info("Getting RSS feed. This might take a while...");
+    logger.info("[RSS] Getting RSS feed. This might take a while...");
     request({
         url: rss,
         method: "GET",
@@ -231,10 +228,10 @@ function rssFeed(rss) {
         }
     }, (error, body) => {
         if (error) {
-            logger.error(error);
+            logger.error(`[RSS] ${error}`);
             return;
         }
-        logger.info("RSS successful, it took " + ((new Date).getTime() - t0) / 1000 + " seconds.");
+        logger.info(`[RSS] RSS successful, it took ${((new Date).getTime() - t0) / 1000} seconds.`);
         rssDownload(body);
     });
 }
@@ -248,11 +245,11 @@ function rssDownload(xmlBody) {
     let changed = false;
     let downloadFilesList = [];
     if (xmlBody.statusCode !== 200) {
-        logger.error("RSS feed: " + xmlBody.statusCode + ": " + xmlBody.statusMessage);
+        logger.error(`[RSS] ${xmlBody.statusCode}: ${xmlBody.statusMessage}`);
         switch (xmlBody.statusCode) {
-        case 401:
-            logger.error("RSS feed: Please check your login data. Delete the data folder in the root directory to enter your password again.");
-            break;
+            case 401:
+                logger.error("RSS feed: Please check your login data. Delete the data folder in the root directory to enter your password again.");
+                break;
         }
         return;
     }
@@ -318,52 +315,50 @@ function rssDownload(xmlBody) {
 /**
  * Checkout or update SVN repositories
  */
-function updateSvn() {
-    svnRepo.forEach((url) => {
-        let repo = url.replace("https://svn.uni-konstanz.de/", "").replace(/\/$/, "").split("/").slice(1).join("/");
-        let svn = new svnSpawn({
-            cwd: pathToDir + repo,
-            username: config.user,
-            password: loginData.password,
-            noAuthCache: true,
-        });
-        if (!fs.existsSync(pathToDir + repo)) {
-            fs.mkdirSync(pathToDir + repo, { recursive: true });
+function updateSvn(url) {
+    let repo = url.replace("https://svn.uni-konstanz.de/", "").replace(/\/$/, "").split("/").slice(1).join("/");
+    let svn = new svnSpawn({
+        cwd: pathToDir + repo,
+        username: config.user,
+        password: loginData.password,
+        noAuthCache: true,
+    });
+    if (!fs.existsSync(pathToDir + repo)) {
+        fs.mkdirSync(pathToDir + repo, { recursive: true });
+    }
+    // Check if path is working copy, if not, checkout repo
+    svn.getInfo(function (error) {
+        if (error) { // Not a working copy
+            svn.cmd(["checkout", url, "./"], function (error, data) {
+                if (error) {
+                    logger.error(`[SVN] Checkout of ${repo} failed! \r\n${error.message}`);
+                }
+                if (data) {
+                    let lines = data.split("\r\n").slice(1, -1);
+                    if (!lines[0].includes("Checked out revision")) {
+                        for (let line of lines) {
+                            logger.info(`[SVN] ${repo}: ${line}`);
+                        }
+                        logger.info(`[SVN] Checkout of ${url} complete.`);
+                    }
+                }
+            });
+        } else {
+            svn.update(function (error, data) {
+                if (error) {
+                    logger.error(`[SVN] Update of ${repo} failed! \r\n${error.message}`);
+                }
+                if (data) {
+                    let lines = data.split("\r\n").slice(1, -1);
+                    if (!lines[0].includes("At revision")) {
+                        for (let line of lines) {
+                            logger.info(repo + ": " + line);
+                        }
+                        logger.info(`[SVN] Update of ${url} complete.`);
+                    }
+                }
+            });
         }
-        // Check if path is working copy, if not, checkout repo
-        svn.getInfo(function (err) {
-            if (err) { // Not a working copy
-                svn.cmd(["checkout", url, "./"], function (error, data) {
-                    if (error) {
-                        logger.error("Checkout of " + repo + " failed! \r\n" + error.message);
-                    }
-                    if (data) {
-                        let lines = data.split("\r\n").slice(1, -1);
-                        if (!lines[0].includes("Checked out revision")) {
-                            for (let line of lines) {
-                                logger.info(repo + ": " + line);
-                            }
-                            logger.info("Checkout of " + url + " complete.");
-                        }
-                    }
-                });
-            } else {
-                svn.update(function (error, data) {
-                    if (error) {
-                        logger.error("Update of " + repo + " failed! \r\n" + error.message);
-                    }
-                    if (data) {
-                        let lines = data.split("\r\n").slice(1, -1);
-                        if (!lines[0].includes("At revision")) {
-                            for (let line of lines) {
-                                logger.info(repo + ": " + line);
-                            }
-                            logger.info("Update of " + url + " complete.");
-                        }
-                    }
-                });
-            }
-        });
     });
 }
 
@@ -373,30 +368,28 @@ function updateSvn() {
  * @param {string} url URL to git repo
  */
 function gitClone(url) {
-    let folder = url.slice(url.lastIndexOf("/") + 1, url.lastIndexOf("."));
-    if (fs.existsSync(pathToDir + folder)) {
-        git(pathToDir + folder).checkIsRepo((err, isRepo) => {
+    let repoName = url.slice(url.lastIndexOf("/") + 1, url.lastIndexOf("."));
+    if (fs.existsSync(pathToDir + repoName)) {
+        git(pathToDir + repoName).checkIsRepo((err, isRepo) => {
             if (!isRepo) {
-                git(pathToDir).clone(url, pathToDir + folder, (err) => {
-                    if (err) {
-                        logger.error(err);
+                git(pathToDir).clone(url, pathToDir + repoName, (e) => {
+                    if (e) {
+                        logger.error(`[Git] Error cloning ${repoName}\r\n${e}`);
                     } else {
-                        logger.info(`Cloned ${folder} successfully.`);
+                        logger.info(`[Git] Cloned ${repoName} successfully.`);
                     }
-                    gitPull(folder);
                 });
             } else {
-                gitPull(folder);
+                gitPull(repoName);
             }
         });
     } else {
-        git(pathToDir).clone(url, folder, (err) => {
-            if (err) {
-                logger.error(err);
+        git(pathToDir).clone(url, repoName, (e) => {
+            if (e) {
+                logger.error(`[Git] Error cloning ${repoName}\r\n${e}`);
             } else {
-                logger.info(`Cloned ${folder} successfully.`);
+                logger.info(`[Git] Cloned ${repoName} successfully.`);
             }
-            gitPull(folder);
         });
     }
 }
@@ -406,18 +399,18 @@ function gitClone(url) {
  * @param {string} repoName name of git repo
  */
 function gitPull(repoName) {
-    git(pathToDir + repoName).pull(function (err, res) {
-        if (err) {
-            logger.error(err);
+    git(pathToDir + repoName).pull(function (e, res) {
+        if (e) {
+            logger.error(`[Git] Error pulling ${repoName}\r\n${e}`);
         }
         if (res.deleted.length > 0) {
-            logger.info(`${repoName}: Deleted ${res.deleted.length} files: ${res.deleted.join(", ")}`);
+            logger.info(`[Git] ${repoName}: Deleted ${res.deleted.length} files: ${res.deleted.join(", ")}`);
         }
         if (res.created.length > 0) {
-            logger.info(`${repoName}: Added ${res.deleted.length} files: ${res.created.join(", ")}`);
+            logger.info(`[Git] ${repoName}: Added ${res.deleted.length} files: ${res.created.join(", ")}`);
         }
         if (Object.keys(res.insertions).length > 0) {
-            logger.info(`${repoName}: Changed ${Object.keys(res.insertions).length} files: ${Object.keys(res.insertions).join(", ")}`);
+            logger.info(`[Git] ${repoName}: Changed ${Object.keys(res.insertions).length} files: ${Object.keys(res.insertions).join(", ")}`);
         }
     });
 }
@@ -427,7 +420,7 @@ function gitPull(repoName) {
  * @param {{}} downloadFile object of file to download
  */
 function downloadFile(downloadFile, dlAmnt) {
-    logger.info(`Downloading (${++downloading}/${dlAmnt}): ${downloadFile.fileName}...`);
+    logger.info(`[Ilias] Downloading (${++downloading}/${dlAmnt}): ${downloadFile.fileName}...`);
     let path = pathToDir;
     // Build the folder structure one by one in order to mkdir for each new dir
     for (let i = 0; i < downloadFile.subfolders.length; i++) {
@@ -450,17 +443,22 @@ function downloadFile(downloadFile, dlAmnt) {
             "User-Agent": "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.111 Safari/537.36"
         }
     }).pipe(file).on("finish", () => {
-        logger.info(`Downloaded (${++downloaded}/${dlAmnt}): ${downloadFile.fileName}`);
-        if (downloaded == dlAmnt) {
-            updateFileList();
-            logger.info("All files finished downloading.");
-        }
+        logger.info(`[Ilias] Downloaded (${++downloaded}/${dlAmnt}): ${downloadFile.fileName}`);
         if (config.discordBot) {
             const buffer = fs.readFileSync(path + "/" + downloadFile.fileName.replace(/[/\\?%*:|"<>]/g, "-"));
-            giliaSvnBot.sendFile(buffer, downloadFile, dlAmnt, logger);
+            promiseSent.push(giliaSvnBot.sendFile(buffer, downloadFile, dlAmnt, logger));
+        }
+        if (downloaded == dlAmnt) {
+            updateFileList();
+            logger.info("[Ilias] All files finished downloading.");
+            if (config.discordBot) {
+                Promise.all(promiseSent).then(() => {
+                    giliaSvnBot.destroyBot();
+                });
+            }
         }
     }).on("error", (error) => {
-        logger.error(error);
+        logger.error("[Ilias] " + error);
         errorDlFile = true;
     });
 }
@@ -472,10 +470,9 @@ function updateFileList() {
     if (!errorDlFile) {
         fs.writeFile(fileFile, JSON.stringify(fileList, null, 4), (err) => {
             if (err) {
-                logger.error("An error occurred, file list has not been updated.");
-                logger.error(err);
+                logger.error("[Ilias] An error occurred, file list has not been updated.\r\n" + err);
             }
-            logger.info("File list has been updated.");
+            logger.info("[Ilias] File list has been updated.");
         });
     }
 }

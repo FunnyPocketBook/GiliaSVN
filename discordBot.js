@@ -5,26 +5,26 @@ let sentCounter = 0;
 let sendingCounter = 0;
 
 module.exports = {
-    sendFile: function (file, fileInfo, dlAmount, logger) {
+    sendFile: async function (file, fileInfo, dlAmount, logger) {
         const attachment = new Discord.Attachment(file, fileInfo.fileName);
         let channel = bot.channels.get(config.channels[fileInfo.course]);
-        logger.info(`Sending (${++sendingCounter}/${dlAmount}) ${fileInfo.fileName}`);
-        channel.send(fileInfo.fileName, attachment).then(m => {
-            logger.info(`Sent (${++sentCounter}/${dlAmount}) ${m}`);
-            if (sentCounter === dlAmount) {
-                bot.destroy();
-            }
-        });
+        logger.info(`[DiscordBot] Sending (${++sendingCounter}/${dlAmount}) ${fileInfo.fileName}`);
+        try {
+            let message = await channel.send(fileInfo.fileName, attachment);
+            logger.info(`[DiscordBot] Sent (${++sentCounter}/${dlAmount}) ${message}`);
+        } catch (e) {
+            logger.error(`[DiscordBot] Error sending ${fileInfo.fileName}: ${e}`);
+        }
     },
-    createBot: function() {
+    createBot: function () {
         bot = new Discord.Client({
             token: config.token,
             autorun: true
         });
-    
+
         bot.login(config.token);
     },
-    destroyBot: function() {
+    destroyBot: function () {
         bot.destroy();
     }
 };
