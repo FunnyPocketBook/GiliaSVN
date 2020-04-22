@@ -44,7 +44,7 @@
 
 ### Requirements
 
-This script uses Node.js. If you don't have it, head to [Node.js](https://nodejs.org/en/) and download the latest LTS version for your OS. Then install it and follow the install instructions.
+This script uses Node.js. If you don't have it, head to [Node.js](https://nodejs.org/en/) and download the latest LTS version for your OS. Then install it and follow the install instructions. It also requires git and svn CLI clients.
 
 ### "Installation"
 
