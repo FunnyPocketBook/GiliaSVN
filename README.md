@@ -2,7 +2,7 @@
 
 ## How to use
 
-01. Install Node.js
+01. Install Node.js, git and svn CLI
 02. Clone repository
 03. Run `npm install` in the terminal
 04. Get your private RSS feed link on ILIAS
