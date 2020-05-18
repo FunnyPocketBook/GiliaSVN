@@ -4,8 +4,10 @@
     "privateRssFeed": "privateRssFeedURL",
     "svnRepo": ["https://svn.uni-konstanz.de/repo/"],
     "gitRepo": ["https://git.uni-konstanz.de/repo/"],
+    "ignoreFile": ["grosse-datei.txt"],
+    "ignoreCourse": ["Datenmathematik (2019/2020)"],
+    "ignoreExtension": [".mp4"],
     "downloadDir": "path to download directory",
     "savedFilesDir": "path to directory of files.json where already downloaded files are being tracked",
-    "ignoreDir": "path to directory of ignore.txt where to be ignored files are stored",
     "discordBot": false
 }

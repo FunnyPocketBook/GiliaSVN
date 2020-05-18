@@ -8,7 +8,7 @@ const svnSpawn = require("svn-spawn");
 const crypto = require("crypto");
 const git = require("simple-git");
 const read = require("read");
-const giliaSvnBot = require("./discordBot");
+let giliaSvnBot;
 const { document } = (new JSDOM("")).window;
 global.document = document;
 const logger = log4js.getLogger("ilias");
@@ -45,12 +45,12 @@ try {
 }
 
 if (config.discordBot) {
+    giliaSvnBot = require("./discordBot");
     giliaSvnBot.createBot();
 }
 
 const pathToDir = config.downloadDir.endsWith("/") ? config.downloadDir : config.downloadDir + "/";
 const fileFile = config.savedFilesDir.endsWith("/") ? config.savedFilesDir + "files.json" : config.savedFilesDir + "/files.json";
-const ignoreFile = config.ignoreDir.endsWith("/") ? config.ignoreDir + "ignore.txt" : config.ignoreDir + "/ignore.txt";
 const svnRepo = config.svnRepo;
 const gitRepo = config.gitRepo;
 const loginData = {
@@ -60,8 +60,9 @@ const loginData = {
 let rss;
 
 let fileList = {}; // Stores file infos
-let ignoreList = []; // Stores files to ignore
-let ignoreCourse = []; // Stores courses to ignore
+let ignoreList = config.ignoreFile; // Stores files to ignore
+let ignoreCourse = config.ignoreCourse; // Stores courses to ignore
+let ignoreExtension = config.ignoreExtension; // Stores extensions to ignore
 let errorDlFile = false; //
 let downloading = 0;
 let downloaded = 0;
@@ -80,10 +81,10 @@ main();
 function main() {
     logger.info("-----");
     if (!fs.existsSync("./data/ilias_key") || !fs.existsSync("./data/ilias_key_r" || !fs.existsSync("./data/rss_key") || !fs.existsSync("./data/rss_key_r"))) {
-        read({ prompt: "Ilias password: ", silent: true }, function (err, password) {
+        read({ prompt: "Ilias password: ", silent: true }, function(err, password) {
             loginData.password = password;
             encrypt(password, "ilias_key");
-            read({ prompt: "RSS password: ", silent: true }, function (err, password) {
+            read({ prompt: "RSS password: ", silent: true }, function(err, password) {
                 rss = config.privateRssFeed.replace("-password-", password);
                 encrypt(password, "rss_key");
                 getFileList();
@@ -104,30 +105,14 @@ function getFileList() {
     }
     logger.info("Download path: " + pathToDir);
     logger.info("File list path: " + fileFile);
-    logger.info("Ignore file path: " + ignoreFile);
     if (!fs.existsSync(fileFile)) {
         fs.closeSync(fs.openSync(fileFile, "w"));
-    }
-    if (!fs.existsSync(ignoreFile)) {
-        fs.mkdirSync(ignoreFile.replace("ignore.txt", ""), { recursive: true });
-        fs.closeSync(fs.openSync(ignoreFile, "w"));
     }
 
     try {
         let fileContent = fs.readFileSync(fileFile, "utf-8");
         if (fileContent.length > 0) {
             fileList = JSON.parse(fileContent);
-        }
-        fileContent = fs.readFileSync(ignoreFile, "utf-8");
-        if (fileContent.length > 0) {
-            let array = fileContent.toString().replace(/\r\n/g, "\n").split("\n");
-            for (let i in array) {
-                if (!array[i].startsWith("Course:")) {
-                    ignoreList.push(array[i].trim());
-                } else {
-                    ignoreCourse.push(array[i].replace("Course:", "").trim());
-                }
-            }
         }
     } catch (err) {
         logger.error(err);
@@ -187,7 +172,7 @@ function login(url) {
             if (response.statusCode != 200) {
                 logger.error("[Ilias] Status code: " + response.statusCode);
             }
-            dom.window.document.querySelectorAll(".alert-danger").forEach(function (e) {
+            dom.window.document.querySelectorAll(".alert-danger").forEach(function(e) {
                 logger.error(`[Ilias] ${e.textContent.trim()}`);
             });
             process.exit();
@@ -253,7 +238,7 @@ function rssDownload(xmlBody) {
         }
         return;
     }
-    parseString(xmlBody.body, function (err, result) {
+    parseString(xmlBody.body, function(err, result) {
         xml = result;
     });
     for (let i = 0; i < xml.rss.channel[0].item.length; i++) {
@@ -267,9 +252,10 @@ function rssDownload(xmlBody) {
                 fileNumber: xml.rss.channel[0].item[i].link[0].match(/file_(\d*)/)[1],
                 fileDate: xml.rss.channel[0].item[i].pubDate[0]
             };
+            fileToDownload.extension = fileToDownload.fileName.substring(fileToDownload.fileName.lastIndexOf("."));
             // Checks if file has already been downloaded or if there is an updated file
             let temp = fileList;
-            if (ignoreCourse.includes(fileToDownload.subfolders[0])) {
+            if (ignoreCourse.includes(fileToDownload.subfolders[0]) || ignoreExtension.includes(fileToDownload.extension)) {
                 continue;
             }
             // Build up the object one key by one
@@ -327,11 +313,16 @@ function updateSvn(url) {
         fs.mkdirSync(pathToDir + repo, { recursive: true });
     }
     // Check if path is working copy, if not, checkout repo
-    svn.getInfo(function (error) {
+    svn.getInfo(function(error) {
         if (error) { // Not a working copy
-            svn.cmd(["checkout", url, "./"], function (error, data) {
+            svn.cmd(["checkout", url, "./"], function(error, data) {
                 if (error) {
-                    logger.error(`[SVN] Checkout of ${repo} failed! \r\n${error.message}`);
+                    logger.error(`[SVN] Checkout of ${repo} failed! Attempting svn cleanup.\r\n${error.message}`);
+                    svn.cmd(["cleanup", url, "./"], function(error) {
+                        if (error) {
+                            logger.error(`[SVN] Cleanup of ${repo} failed!\r\n${error.message}`);
+                        }
+                    });
                 }
                 if (data) {
                     let lines = data.split("\r\n").slice(1, -1);
@@ -344,9 +335,14 @@ function updateSvn(url) {
                 }
             });
         } else {
-            svn.update(function (error, data) {
+            svn.update(function(error, data) {
                 if (error) {
-                    logger.error(`[SVN] Update of ${repo} failed! \r\n${error.message}`);
+                    logger.error(`[SVN] Update of ${repo} failed! Attempting svn cleanup.\r\n${error.message}`);
+                    svn.cmd(["cleanup", url, "./"], function(error) {
+                        if (error) {
+                            logger.error(`[SVN] Cleanup of ${repo} failed! \r\n${error.message}`);
+                        }
+                    });
                 }
                 if (data) {
                     let lines = data.split("\r\n").slice(1, -1);
@@ -399,7 +395,7 @@ function gitClone(url) {
  * @param {string} repoName name of git repo
  */
 function gitPull(repoName) {
-    git(pathToDir + repoName).pull(function (e, res) {
+    git(pathToDir + repoName).pull(function(e, res) {
         if (e) {
             logger.error(`[Git] Error pulling ${repoName}\r\n${e}`);
         }
