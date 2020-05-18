@@ -9,6 +9,7 @@ const crypto = require("crypto");
 const git = require("simple-git");
 const read = require("read");
 let giliaSvnBot;
+let botConfig;
 const { document } = (new JSDOM("")).window;
 global.document = document;
 const logger = log4js.getLogger("ilias");
@@ -32,6 +33,7 @@ log4js.configure({
     }
 });
 
+let botDownloadCounter = 0;
 let cookie = request.jar();
 let config;
 try {
@@ -46,6 +48,7 @@ try {
 
 if (config.discordBot) {
     giliaSvnBot = require("./discordBot");
+    botConfig = require("./botConfig.json");
     giliaSvnBot.createBot();
 }
 
@@ -271,6 +274,9 @@ function rssDownload(xmlBody) {
                         temp[fileToDownload.fileName].fileDate = fileToDownload.fileDate;
                         changed = true;
                         if (!ignoreList.includes(fileToDownload.fileName)) {
+                            if (config.discordBot && botConfig.channels[fileToDownload.course] != undefined) {
+                                botDownloadCounter++;
+                            }
                             downloadFilesList.push(fileToDownload);
                         }
                     }
@@ -279,6 +285,9 @@ function rssDownload(xmlBody) {
                         temp[fileToDownload.fileName] = { "fileNumber": fileToDownload.fileNumber, "fileDate": fileToDownload.fileDate };
                         changed = true;
                         if (!ignoreList.includes(fileToDownload.fileName)) {
+                            if (config.discordBot && botConfig.channels[fileToDownload.course] != undefined) {
+                                botDownloadCounter++;
+                            }
                             downloadFilesList.push(fileToDownload);
                         }
                     }
@@ -440,9 +449,9 @@ function downloadFile(downloadFile, dlAmnt) {
         }
     }).pipe(file).on("finish", () => {
         logger.info(`[Ilias] Downloaded (${++downloaded}/${dlAmnt}): ${downloadFile.fileName}`);
-        if (config.discordBot) {
+        if (config.discordBot && botConfig.channels[downloadFile.course] != undefined) {
             const buffer = fs.readFileSync(path + "/" + downloadFile.fileName.replace(/[/\\?%*:|"<>]/g, "-"));
-            promiseSent.push(giliaSvnBot.sendFile(buffer, downloadFile, dlAmnt, logger));
+            promiseSent.push(giliaSvnBot.sendFile(buffer, downloadFile, botDownloadCounter, logger));
         }
         if (downloaded == dlAmnt) {
             updateFileList();
@@ -513,6 +522,9 @@ function decrypt(filename) {
 }
 
 process.on("SIGINT", () => {
+    if (config.discordBot) {
+        giliaSvnBot.destroyBot();
+    }
     logger.info("Process manually aborted by user.");
     log4js.shutdown(() => {
         process.exit();
