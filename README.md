@@ -12,15 +12,18 @@
 
 ``` json
     {
-    "user": "ying-kai.dang",
-    "privateRssFeed": "https://ying-kai.dang:-password-@ilias.uni-konstanz.de/ilias/privfeed.php?client_id=ilias_uni&user_id=userid&hash=hash",
-    "svnRepo": ["https://svn.uni-konstanz.de/dbis/kdp/pub/", "https://svn.uni-konstanz.de/dbis/kdi/pub/"],
+    "user": "username",
+    "userGitlab": "username",
+    "privateRssFeed": "privateRssFeedURL",
+    "svnRepo": ["https://svn.uni-konstanz.de/repo/"],
     "gitRepo": ["https://git.uni-konstanz.de/repo/"],
-    "downloadDir": "C:/Users/user/iliasFiles/",
-    "savedFilesDir": "C:/Users/user/iliasFiles/",
-    "ignoreDir": "C:/Users/user/iliasFiles/",
+    "ignoreFile": ["grosse-datei.txt"],
+    "ignoreCourse": ["Datenmathematik (2019/2020)"],
+    "ignoreExtension": [".mp4"],
+    "downloadDir": "path to download directory",
+    "savedFilesDir": "path to directory of files.json where already downloaded files are being tracked",
     "discordBot": false
-    }
+}
 ```
 
 06. Rename `config-template.js` to `config.js`
