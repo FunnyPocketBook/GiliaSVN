@@ -83,13 +83,13 @@ main();
  */
 function main() {
     logger.info("-----");
-    if (!fs.existsSync("./data/ilias_key") || !fs.existsSync("./data/ilias_key_r" || !fs.existsSync("./data/rss_key") || !fs.existsSync("./data/rss_key_r"))) {
+    if (!fs.existsSync("./data/ilias_key") || !fs.existsSync("./data/ilias_key_r") || !fs.existsSync("./data/rss_key") || !fs.existsSync("./data/rss_key_r")) {
         read({ prompt: "Ilias password: ", silent: true }, function(err, password) {
             loginData.password = password;
             encrypt(password, "ilias_key");
-            read({ prompt: "RSS password: ", silent: true }, function(err, password) {
-                rss = config.privateRssFeed.replace("-password-", password);
-                encrypt(password, "rss_key");
+            read({ prompt: "RSS password: ", silent: true }, function(e, rssPassword) {
+                rss = config.privateRssFeed.replace("-password-", rssPassword);
+                encrypt(rssPassword, "rss_key");
                 getFileList();
             });
         });
@@ -187,13 +187,13 @@ function login(url) {
         svnRepo.forEach(updateSvn);
     }
     if (gitRepo && gitRepo.length > 0) {
-        gitRepo.forEach((url) => {
+        gitRepo.forEach((url2) => {
             let user = config.user;
             if (config.userGitlab && config.userGitlab !== "") {
                 user = config.userGitlab;
             }
-            url = url.replace("https://", `https://${user}:${loginData.password}@`);
-            gitClone(url);
+            url2 = url2.replace("https://", `https://${user}:${loginData.password}@`);
+            gitClone(url2);
         });
     }
 }
@@ -201,13 +201,13 @@ function login(url) {
 
 /**
  * Get RSS feed
- * @param {string} rss URL to private RSS feed
+ * @param {string} rssUrl URL to private RSS feed
  */
-function rssFeed(rss) {
+function rssFeed(rssUrl) {
     let t0 = (new Date).getTime();
     logger.info("[RSS] Getting RSS feed. This might take a while...");
     request({
-        url: rss,
+        url: rssUrl,
         method: "GET",
         followAllRedirects: true,
         jar: cookie,
@@ -324,12 +324,12 @@ function updateSvn(url) {
     // Check if path is working copy, if not, checkout repo
     svn.getInfo(function(error) {
         if (error) { // Not a working copy
-            svn.cmd(["checkout", url, "./"], function(error, data) {
-                if (error) {
+            svn.cmd(["checkout", url, "./"], function(error2, data) {
+                if (error2) {
                     logger.error(`[SVN] Checkout of ${repo} failed! Attempting svn cleanup.\r\n${error.message}`);
-                    svn.cmd(["cleanup", url, "./"], function(error) {
-                        if (error) {
-                            logger.error(`[SVN] Cleanup of ${repo} failed!\r\n${error.message}`);
+                    svn.cmd(["cleanup", url, "./"], function(error3) {
+                        if (error3) {
+                            logger.error(`[SVN] Cleanup of ${repo} failed!\r\n${error3.message}`);
                         }
                     });
                 }
@@ -344,12 +344,12 @@ function updateSvn(url) {
                 }
             });
         } else {
-            svn.update(function(error, data) {
-                if (error) {
-                    logger.error(`[SVN] Update of ${repo} failed! Attempting svn cleanup.\r\n${error.message}`);
-                    svn.cmd(["cleanup", url, "./"], function(error) {
-                        if (error) {
-                            logger.error(`[SVN] Cleanup of ${repo} failed! \r\n${error.message}`);
+            svn.update(function(error2, data) {
+                if (error2) {
+                    logger.error(`[SVN] Update of ${repo} failed! Attempting svn cleanup.\r\n${error2.message}`);
+                    svn.cmd(["cleanup", url, "./"], function(error3) {
+                        if (error3) {
+                            logger.error(`[SVN] Cleanup of ${repo} failed! \r\n${error3.message}`);
                         }
                     });
                 }
@@ -422,15 +422,15 @@ function gitPull(repoName) {
 
 /**
  * Download the requested ilias file
- * @param {{}} downloadFile object of file to download
+ * @param {{}} fileToDownload object of file to download
  */
-function downloadFile(downloadFile, dlAmnt) {
-    logger.info(`[Ilias] Downloading (${++downloading}/${dlAmnt}): ${downloadFile.fileName}...`);
+function downloadFile(fileToDownload, dlAmnt) {
+    logger.info(`[Ilias] Downloading (${++downloading}/${dlAmnt}): ${fileToDownload.fileName}...`);
     let path = pathToDir;
     // Build the folder structure one by one in order to mkdir for each new dir
-    for (let i = 0; i < downloadFile.subfolders.length; i++) {
-        path += downloadFile.subfolders[i].replace(/[/\\?%*:|"<>]/g, "-");
-        if (i != downloadFile.subfolders.length - 1) {
+    for (let i = 0; i < fileToDownload.subfolders.length; i++) {
+        path += fileToDownload.subfolders[i].replace(/[/\\?%*:|"<>]/g, "-");
+        if (i != fileToDownload.subfolders.length - 1) {
             path += "/";
         }
         // Create folder if it doesn't already exist
@@ -438,9 +438,9 @@ function downloadFile(downloadFile, dlAmnt) {
             fs.mkdirSync(path);
         }
     }
-    let file = fs.createWriteStream(path + "/" + downloadFile.fileName.replace(/[/\\?%*:|"<>]/g, "-"));
+    let file = fs.createWriteStream(path + "/" + fileToDownload.fileName.replace(/[/\\?%*:|"<>]/g, "-"));
     request({
-        url: "https://ilias.uni-konstanz.de/ilias/goto_ilias_uni_file_" + downloadFile.fileNumber + "_download.html",
+        url: "https://ilias.uni-konstanz.de/ilias/goto_ilias_uni_file_" + fileToDownload.fileNumber + "_download.html",
         method: "GET",
         followAllRedirects: true,
         jar: cookie,
@@ -448,10 +448,10 @@ function downloadFile(downloadFile, dlAmnt) {
             "User-Agent": "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.111 Safari/537.36"
         }
     }).pipe(file).on("finish", () => {
-        logger.info(`[Ilias] Downloaded (${++downloaded}/${dlAmnt}): ${downloadFile.fileName}`);
-        if (config.discordBot && botConfig.channels[downloadFile.course] != undefined) {
-            const buffer = fs.readFileSync(path + "/" + downloadFile.fileName.replace(/[/\\?%*:|"<>]/g, "-"));
-            promiseSent.push(giliaSvnBot.sendFile(buffer, downloadFile, botDownloadCounter, logger));
+        logger.info(`[Ilias] Downloaded (${++downloaded}/${dlAmnt}): ${fileToDownload.fileName}`);
+        if (config.discordBot && botConfig.channels[fileToDownload.course] != undefined) {
+            const buffer = fs.readFileSync(path + "/" + fileToDownload.fileName.replace(/[/\\?%*:|"<>]/g, "-"));
+            promiseSent.push(giliaSvnBot.sendFile(buffer, fileToDownload, botDownloadCounter, logger));
         }
         if (downloaded == dlAmnt) {
             updateFileList();
