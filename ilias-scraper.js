@@ -176,9 +176,8 @@ function login(url) {
                 logger.error("[Ilias] Status code: " + response.statusCode);
             }
             dom.window.document.querySelectorAll(".alert-danger").forEach(function(e) {
-                logger.error(`[Ilias] ${e.textContent.trim()}`);
+                logger.warn(`[Ilias] ${e.textContent.trim()}`);
             });
-            process.exit();
         }
         logger.info(`[Ilias] Login successful, it took ${((new Date).getTime() - t0) / 1000} seconds.`);
         rssFeed(rss);
