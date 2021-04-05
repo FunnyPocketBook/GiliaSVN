@@ -18,7 +18,7 @@
   "homepage": "https://github.com/FunnyPocketBook/ilias-scraper#readme",
   "dependencies": {
     "crypto": "^1.0.1",
-    "discord.js": "^12.2.0",
+    "discord.js": "^12.5.3",
     "fs": "0.0.1-security",
     "jsdom": "^16.2.2",
     "log4js": "^6.2.1",
