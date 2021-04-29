@@ -1,0 +1,33 @@
+version: 2
+updates:
+- package-ecosystem: npm
+  directory: "/"
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: discord.js
+    versions:
+    - 12.5.1
+    - 12.5.2
+  - dependency-name: jsdom
+    versions:
+    - 16.4.0
+    - 16.5.0
+    - 16.5.1
+    - 16.5.2
+  - dependency-name: simple-git
+    versions:
+    - 2.31.0
+    - 2.32.0
+    - 2.34.2
+    - 2.35.0
+    - 2.35.1
+    - 2.35.2
+    - 2.36.0
+    - 2.36.1
+    - 2.36.2
+    - 2.37.0
+  - dependency-name: lodash
+    versions:
+    - 4.17.20
